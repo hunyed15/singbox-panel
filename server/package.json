@@ -8,6 +8,13 @@
     "test": "node --test"
   },
   "dependencies": {
-    "better-sqlite3": "^13.0.3"
+    "bcryptjs": "^3.0.3",
+    "better-sqlite3": "^13.0.3",
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
+    "ssh2": "^1.17.0"
+  },
+  "devDependencies": {
+    "supertest": "^7.2.2"
   }
 }
