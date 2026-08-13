@@ -213,12 +213,14 @@ async function step(label, fn) {
       const url = `${config.singboxDownloadBase}/v${ver}/${asset}`;
       steps.push('download', url);
       await step('下载', async () => {
+        const dl = (u) =>
+          `rm -f /tmp/singbox.tar.gz; (command -v curl >/dev/null && curl -fsSL -o /tmp/singbox.tar.gz '${u}') || (command -v wget >/dev/null && wget -q -O /tmp/singbox.tar.gz '${u}')`;
         try {
-          await ssh.exec(conn, `curl -fsSL -o /tmp/singbox.tar.gz '${url}'`);
+          await ssh.exec(conn, dl(url));
         } catch {
           // GitHub 直连失败 → gh-proxy 镜像兜底
           const mirror = `https://gh-proxy.org/${url}`;
-          await ssh.exec(conn, `curl -fsSL -o /tmp/singbox.tar.gz '${mirror}'`);
+          await ssh.exec(conn, dl(mirror));
         }
       });
       steps.push('extract');
