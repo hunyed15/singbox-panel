@@ -16,7 +16,12 @@ export function buildMachineConfig({ machine, relaySettings, landingSettings, no
   for (const n of active) {
     if (n.outbound_type !== 'relay' || !n.landing_server_id) continue;
     const landing = landings[n.landing_server_id];
-    if (!landing) continue;
+    if (!landing) {
+      // 缺失落地机会导致流量静默走 direct——必须失败大声
+      throw new Error(
+        `node #${n.id} (${n.name}) 引用的落地机 #${n.landing_server_id} 不存在或缺少共享入站配置`,
+      );
+    }
     outbounds.push(buildRelayOutbound({ nodeId: n.id, landing }));
     rules.push(buildRelayRule({ port: n.listen_port, nodeId: n.id }));
   }

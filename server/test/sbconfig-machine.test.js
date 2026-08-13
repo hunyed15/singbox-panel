@@ -93,6 +93,19 @@ test('relay machine with no nodes: minimal valid config', () => {
   assert.equal(cfg.route.final, 'direct');
 });
 
+test('relay node with missing landing throws (no silent direct)', () => {
+  assert.throws(() =>
+    buildMachineConfig({
+      machine: MACHINE,
+      relaySettings: { realityPrivateKey: 'priv', shortId: 'x' },
+      landingSettings: null,
+      nodes: [node({ id: 7, outbound_type: 'relay', landing_server_id: 999 })],
+      landings: {},
+    }),
+    /落地机 #999/,
+  );
+});
+
 test('tunnel node: direct inbound, no route rule', () => {
   const cfg = buildMachineConfig({
     machine: MACHINE,

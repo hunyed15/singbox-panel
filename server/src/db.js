@@ -50,7 +50,7 @@ CREATE TABLE IF NOT EXISTS nodes (
   tunnel_address TEXT NOT NULL DEFAULT '',
   tunnel_port INTEGER,
   note TEXT NOT NULL DEFAULT '',
-  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
   UNIQUE(server_id, listen_port)
 );
 CREATE TABLE IF NOT EXISTS sni_library (

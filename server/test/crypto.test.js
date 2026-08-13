@@ -71,6 +71,11 @@ test('self-signed cert: parseable, SAN ok, ~10y validity, ECDSA P-256', () => {
   assert.ok(san.includes('hk1'));
   assert.ok(san.includes('203.0.113.11'));
 
+  // IPv6 SAN 正确展开(回归:此前 :: 展开错误;Node 渲染为展开大写形式)
+  const ipv6 = genSelfSignedCert({ commonName: 'kr4', altNames: ['kr4', '2001:db8::24'] });
+  const san6 = new X509Certificate(ipv6.certPem).subjectAltName || '';
+  assert.ok(san6.toLowerCase().includes('2001:db8:0:0:0:0:0:24'), `SAN6=${san6}`);
+
   const days = (new Date(cert.validTo).getTime() - new Date(cert.validFrom).getTime()) / 86400000;
   assert.ok(days > 3650 - 5 && days < 3655, `validity days=${days}`);
 

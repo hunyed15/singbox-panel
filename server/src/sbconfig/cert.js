@@ -77,6 +77,25 @@ const OID_EC_PUBLIC_KEY = derOid([1, 2, 840, 10045, 2, 1]);
 const OID_PRIME256V1 = derOid([1, 2, 840, 10045, 3, 1, 7]);
 const OID_ECDSA_SHA256 = derOid([1, 2, 840, 10045, 4, 3, 2]);
 
+/* 将 IPv6 地址解析为 16 字节(含 :: 展开);非法返回 null */
+function ipv6ToBytes(addr) {
+  const hasDouble = addr.includes('::');
+  const [head, tail] = addr.split('::');
+  const h = head === '' ? [] : head.split(':');
+  const t = tail === '' || tail === undefined ? [] : tail.split(':');
+  const missing = 8 - h.length - t.length;
+  if (hasDouble ? missing < 1 : missing !== 0) return null;
+  const parts = [...h, ...Array(Math.max(missing, 0)).fill('0'), ...t];
+  if (parts.length !== 8) return null;
+  const bytes = [];
+  for (const p of parts) {
+    if (!/^[0-9a-fA-F]{1,4}$/.test(p)) return null;
+    const v = parseInt(p, 16);
+    bytes.push((v >> 8) & 0xff, v & 0xff);
+  }
+  return Buffer.from(bytes);
+}
+
 /**
  * 生成自签证书(ECDSA P-256,SAN 含 hostname 与 IP,10 年),纯 node:crypto 手构 DER。
  * 返回 PEM。每台机器生成一次,config 引用 certificate_path/key_path。
@@ -99,15 +118,14 @@ export function genSelfSignedCert({ commonName, altNames = [] }) {
   const notAfter = new Date(Date.now() + TEN_YEARS);
   const serial = crypto.randomBytes(16);
 
-  // subjectAltName: DNS / IP
+  // subjectAltName: DNS / IP(IPv6 正确展开;非法地址跳过,不 crash)
   const sanParts = [];
   for (const name of altNames) {
-    const isIp = /^\d+\.\d+\.\d+\.\d+$/.test(name) || name.includes(':');
-    if (isIp) {
-      const ip = name.includes(':')
-        ? Buffer.from(name.split(':').map((h) => parseInt(h, 16)))
-        : Buffer.from(name.split('.').map(Number));
-      sanParts.push(der(0x87, ip)); // [7] iPAddress
+    if (/^\d+\.\d+\.\d+\.\d+$/.test(name)) {
+      sanParts.push(der(0x87, Buffer.from(name.split('.').map(Number)))); // [7] iPAddress v4
+    } else if (name.includes(':')) {
+      const ip = ipv6ToBytes(name);
+      if (ip) sanParts.push(der(0x87, ip)); // [7] iPAddress v6
     } else {
       sanParts.push(der(0x82, Buffer.from(name, 'utf8'))); // [2] dNSName
     }
