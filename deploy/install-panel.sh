@@ -15,7 +15,7 @@ fi
 echo "==> 2/5 拉取代码"
 mkdir -p "$PANEL_DIR"
 if [ ! -f "$PANEL_DIR/package.json" ]; then
-  git clone https://github.com/YOUR_REPO/singbox-panel.git "$PANEL_DIR"
+  git clone https://github.com/hunyed15/singbox-panel.git "$PANEL_DIR"
 fi
 cd "$PANEL_DIR"
 
