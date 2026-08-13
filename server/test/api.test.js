@@ -160,15 +160,15 @@ test('snis CRUD + settings slug + 401 guard', async () => {
   assert.equal((await request(app).get('/api/servers')).status, 401);
 
   // snis
-  const add = await auth(request(app).post('/api/snis').send({ domain: 'www.apple.com', note: 'Apple' }));
+  const add = await auth(request(app).post('/api/snis').send({ domain: 'cdn.example.com', note: '测试' }));
   assert.equal(add.status, 200);
   assert.equal(add.body.builtin, 0);
-  const dup = await auth(request(app).post('/api/snis').send({ domain: 'www.apple.com' }));
+  const dup = await auth(request(app).post('/api/snis').send({ domain: 'cdn.example.com' }));
   assert.equal(dup.status, 409);
   const bad = await auth(request(app).post('/api/snis').send({ domain: 'not-a-domain' }));
   assert.equal(bad.status, 400);
-  await auth(request(app).put(`/api/snis/${add.body.id}`).send({ note: 'Apple 官网' }));
-  assert.equal(db.prepare('SELECT note FROM sni_library WHERE id=?').get(add.body.id).note, 'Apple 官网');
+  await auth(request(app).put(`/api/snis/${add.body.id}`).send({ note: '测试更新' }));
+  assert.equal(db.prepare('SELECT note FROM sni_library WHERE id=?').get(add.body.id).note, '测试更新');
   await auth(request(app).delete(`/api/snis/${add.body.id}`));
   assert.equal(db.prepare('SELECT COUNT(*) c FROM sni_library WHERE id=?').get(add.body.id).c, 0);
 

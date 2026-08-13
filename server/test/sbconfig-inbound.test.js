@@ -38,7 +38,7 @@ test('vless-reality: users + reality borrow', () => {
   assert.equal(ib.tls.enabled, true);
   assert.equal(ib.tls.server_name, 'www.apple.com');
   assert.equal(ib.tls.reality.enabled, true);
-  assert.deepEqual(ib.tls.reality.handshake, { server: 'www.apple.com', port: 443 });
+  assert.deepEqual(ib.tls.reality.handshake, { server: 'www.apple.com', server_port: 443 });
   assert.equal(ib.tls.reality.private_key, MACHINE.realityPrivateKey);
   assert.deepEqual(ib.tls.reality.short_id, [MACHINE.shortId]);
 });

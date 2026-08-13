@@ -76,7 +76,46 @@ export function initDb(dbPath) {
   db.exec('PRAGMA journal_mode = WAL');
   db.exec('PRAGMA foreign_keys = ON');
   db.exec(DDL);
+  seedSniLibrary(db);
   return db;
+}
+
+/** Reality 借站域名库内置种子(仅空表时插入,可编辑/删除) */
+const SNI_SEED = [
+  ['www.microsoft.com', '微软官网'],
+  ['www.apple.com', 'Apple 官网'],
+  ['dl.google.com', 'Google 下载'],
+  ['www.google.com', 'Google'],
+  ['www.youtube.com', 'YouTube'],
+  ['www.cloudflare.com', 'Cloudflare'],
+  ['gateway.icloud.com', 'iCloud'],
+  ['swdist.apple.com', 'Apple 软件更新'],
+  ['www.bing.com', 'Bing'],
+  ['support.microsoft.com', '微软支持'],
+  ['www.office.com', 'Microsoft 365'],
+  ['www.amazon.com', 'Amazon'],
+  ['www.yahoo.com', 'Yahoo'],
+  ['www.oracle.com', 'Oracle'],
+  ['www.nvidia.com', 'NVIDIA'],
+  ['www.adobe.com', 'Adobe'],
+  ['www.samsung.com', 'Samsung'],
+  ['www.facebook.com', 'Facebook'],
+  ['www.instagram.com', 'Instagram'],
+  ['www.tiktok.com', 'TikTok'],
+  ['discord.com', 'Discord'],
+  ['www.netflix.com', 'Netflix'],
+  ['www.spotify.com', 'Spotify'],
+  ['chat.openai.com', 'OpenAI'],
+  ['www.paypal.com', 'PayPal'],
+];
+
+function seedSniLibrary(db) {
+  const count = db.prepare('SELECT COUNT(*) c FROM sni_library').get().c;
+  if (count > 0) return;
+  const ins = db.prepare('INSERT INTO sni_library (domain, note, builtin) VALUES (?, ?, 1)');
+  for (const [domain, note] of SNI_SEED) {
+    ins.run(domain, note);
+  }
 }
 
 export function getSetting(db, key) {

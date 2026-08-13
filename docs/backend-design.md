@@ -161,7 +161,7 @@ CREATE TABLE IF NOT EXISTS users (
 
 | 模板 | 入站 | 凭据 | TLS/传输 |
 |---|---|---|---|
-| vless-reality | `vless` users[{uuid,flow:"xtls-rprx-vision"}] | uuid(节点级) | tls.enabled + reality{handshake:{server:sni,port:443}, private_key, short_id} |
+| vless-reality | `vless` users[{uuid,flow:"xtls-rprx-vision"}] | uuid(节点级) | tls.enabled + reality{handshake:{server:sni,server_port:443}, private_key, short_id} |
 | vmess-ws-tls | `vmess` users[{uuid,alterId:0}] | uuid | transport ws{path:ws_path} + tls{certificate_path,key_path} |
 | trojan-tls | `trojan` users[{password}] | password | tls{certificate_path,key_path} |
 | ss2022 | `shadowsocks` method/password | password | 无 |

@@ -30,7 +30,7 @@ export function buildInbound({ node, machine }) {
           server_name: node.sni,
           reality: {
             enabled: true,
-            handshake: { server: node.sni, port: 443 },
+            handshake: { server: node.sni, server_port: 443 }, // Dial Fields:server_port 而非 port
             private_key: machine.realityPrivateKey,
             short_id: [machine.shortId],
           },
