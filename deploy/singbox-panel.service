@@ -1,0 +1,15 @@
+[Unit]
+Description=SingBox personal panel
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/singbox-panel
+EnvironmentFile=-/etc/singbox-panel/panel.env
+ExecStart=/usr/bin/node /opt/singbox-panel/server/src/index.js
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
