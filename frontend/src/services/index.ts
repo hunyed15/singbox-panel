@@ -1,13 +1,12 @@
 /**
  * 接口层选择:
- * - 默认 mock(后端未就绪时前端可独立开发,同契约)
- * - VITE_USE_MOCK=false 走真实 HTTP 实现(联调)
- * UI 不感知切换;契约差异在实现层消化。
+ * - 默认走真实 HTTP(生产必须);仅前端开发、后端未就绪时显式设 VITE_USE_MOCK=true 用内存 mock
+ * - 联调/换实现都在此开关;UI 不感知
  */
 import * as http from './http';
 import * as mock from './mock';
 import type { ApiModule } from './types';
 
-const useMock = import.meta.env.VITE_USE_MOCK !== 'false';
+const useMock = import.meta.env.VITE_USE_MOCK === 'true';
 
 export const api: ApiModule = useMock ? mock : http;

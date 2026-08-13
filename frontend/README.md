@@ -20,7 +20,7 @@ npm run dev        # http://localhost:5173(默认 mock 数据,无需后端)
 
 | 变量 | 默认 | 说明 |
 |---|---|---|
-| `VITE_USE_MOCK` | `true` | `false` 时走真实后端 HTTP(联调) |
+| `VITE_USE_MOCK` | `false` | 仅前端开发且后端未就绪时设为 `true` 启用内存 mock;生产构建**必须保持默认**(走真实后端) |
 
 ## 与后端联调
 
