@@ -16,7 +16,9 @@ const APP_SECRET = 'a'.repeat(32);
 const JWT_SECRET = 'jwt-secret';
 
 function fakeSsh() {
+  const written = [];
   return {
+    written,
     exec: async (conn, cmd) => {
       if (cmd.includes('sing-box version')) return { stdout: 'sing-box 1.11.4\n', stderr: '' };
       if (cmd.includes('is-active')) return { stdout: 'active\n', stderr: '' };
@@ -24,7 +26,9 @@ function fakeSsh() {
       if (cmd.includes('uname -m')) return { stdout: 'x86_64\n', stderr: '' };
       return { stdout: '', stderr: '' };
     },
-    writeFile: async () => {},
+    writeFile: async (conn, path, content) => {
+      written.push({ path, content: String(content) });
+    },
     buildConn: (row) => ({ id: row.id }),
   };
 }
@@ -67,7 +71,8 @@ async function login(app) {
 }
 
 test('full flow: servers -> nodes -> edit -> subscribe -> settings', async () => {
-  const { app, db } = await makeApp();
+  const ssh = fakeSsh();
+  const { app, db } = await makeApp(ssh);
   const token = await login(app);
   const authGet = (p) => request(app).get(p).set('Authorization', `Bearer ${token}`);
   const authPost = (p, body) => request(app).post(p).set('Authorization', `Bearer ${token}`).send(body);
@@ -92,6 +97,10 @@ test('full flow: servers -> nodes -> edit -> subscribe -> settings', async () =>
   assert.ok(n1.body.node.sni === 'www.microsoft.com');
   assert.ok(n1.body.node.share_link.startsWith('vless://'));
   assert.equal(n1.body.deploy.ok, true);
+  // 中转节点:入口机配置含 vless 入站 + 落地机配置含共享 ss 入站(32000+landingId)
+  const cfgs = ssh.written.filter((w) => w.path.includes('config.json')).map((w) => w.content);
+  assert.ok(cfgs.some((c) => c.includes('"listen_port": 31001')), '入口机配置应含 vless 入站');
+  assert.ok(cfgs.some((c) => c.includes('32002')), '落地机配置应含共享 ss 入站(32002)');
   const n1Id = n1.body.node.id;
 
   // 建 SOCKS 直连 + 隧道

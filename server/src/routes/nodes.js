@@ -5,6 +5,32 @@ import { TEMPLATE_META, PROTOCOL_DEFAULTS, genNodeCreds, nodeDefaults } from '..
 import { buildShareLink } from '../sub.js';
 import { deployServer } from '../deployServices.js';
 
+/** 下发该节点涉及的机器:入口机 + 所有 relay 节点引用的落地机(落地机需要共享 ss 入站在线) */
+async function deployAffectedMachines(db, ssh, crypto, config, serverId) {
+  const ids = new Set([serverId]);
+  const refs = db
+    .prepare(
+      `SELECT DISTINCT landing_server_id FROM nodes
+       WHERE server_id = ? AND outbound_type = 'relay' AND landing_server_id IS NOT NULL`,
+    )
+    .all(serverId);
+  refs.forEach((r) => ids.add(r.landing_server_id));
+
+  const results = [];
+  for (const id of ids) {
+    results.push({ serverId: id, ...(await deployServer(db, ssh, crypto, config, id)) });
+  }
+  const failed = results.find((r) => r.ok === false);
+  if (failed) {
+    return {
+      ok: false,
+      error: `机器 #${failed.serverId} 下发失败: ${failed.error}`,
+      rolledBack: failed.rolledBack,
+    };
+  }
+  return { ok: true, steps: results.flatMap((r) => r.steps || []) };
+}
+
 /** 构造 NodeItem(share_link 由后端构建,凭据不进响应) */
 function nodeItem(row, serverName, landingName, view) {
   return {
@@ -129,7 +155,7 @@ export function makeNodesRouter({ db, crypto, appSecret, ssh, config }) {
       );
     const id = info.lastInsertRowid;
 
-    const deploy = await deployServer(db, ssh, crypto, config, serverId);
+    const deploy = await deployAffectedMachines(db, ssh, crypto, config, serverId);
     const row = db.prepare(`${SELECT_JOIN} WHERE n.id = ?`).get(id);
     res.json({ node: nodeItem(row, row.server_name, row.landing_name, toView(db, crypto, appSecret, row)), deploy });
   });
@@ -197,7 +223,7 @@ export function makeNodesRouter({ db, crypto, appSecret, ssh, config }) {
       id,
     );
 
-    const deploy = await deployServer(db, ssh, crypto, config, row.server_id);
+    const deploy = await deployAffectedMachines(db, ssh, crypto, config, row.server_id);
     const updated = db.prepare(`${SELECT_JOIN} WHERE n.id = ?`).get(id);
     res.json({ node: nodeItem(updated, updated.server_name, updated.landing_name, toView(db, crypto, appSecret, updated)), deploy });
   });
@@ -206,7 +232,7 @@ export function makeNodesRouter({ db, crypto, appSecret, ssh, config }) {
     const id = Number(req.params.id);
     const row = load(db, id);
     db.prepare('DELETE FROM nodes WHERE id = ?').run(id);
-    const deploy = await deployServer(db, ssh, crypto, config, row.server_id);
+    const deploy = await deployAffectedMachines(db, ssh, crypto, config, row.server_id);
     res.json({ ok: true, deploy });
   });
 
