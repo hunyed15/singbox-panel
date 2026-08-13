@@ -33,10 +33,17 @@ export async function deployMachine(ssh, conn, config, { singboxBin, singboxConf
     await ssh.exec(conn, `systemctl reload ${singboxUnit}`);
     steps.push('reload');
   } catch (err) {
-    // 回滚:恢复备份 + 再 reload(失败不抛出,保留现场)
-    await ssh.exec(conn, `cp -f ${singboxConfig}.bak ${singboxConfig} 2>/dev/null || true`);
-    await ssh.exec(conn, `systemctl reload ${singboxUnit}`).catch(() => {});
-    return { ok: false, error: err.message, rolledBack: true };
+    const msg = err.message || '';
+    if (msg.includes('not applicable')) {
+      // unit 无 ExecReload(旧机器)→ 配置已 check 通过,restart 应用即可,不算失败
+      await ssh.exec(conn, `systemctl restart ${singboxUnit}`);
+      steps.push('restart-fallback');
+    } else {
+      // 真实失败:回滚(恢复备份 + 再 reload,失败不抛出,保留现场)
+      await ssh.exec(conn, `cp -f ${singboxConfig}.bak ${singboxConfig} 2>/dev/null || true`);
+      await ssh.exec(conn, `systemctl reload ${singboxUnit}`).catch(() => {});
+      return { ok: false, error: err.message, rolledBack: true };
+    }
   }
 
   return { ok: true, steps };

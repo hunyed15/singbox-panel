@@ -41,6 +41,25 @@ test('check failure aborts before install', async () => {
   assert.ok(!ssh.calls.some((c) => c.includes('install -m 600')));
 });
 
+test('reload not applicable -> restart fallback, no rollback (old unit without ExecReload)', async () => {
+  const ssh = fakeSsh();
+  // 模拟 reload 报 'not applicable'(unit 无 ExecReload)
+  ssh.exec = async (conn, cmd) => {
+    ssh.calls.push(cmd);
+    if (cmd.includes('systemctl reload')) {
+      throw new Error('Failed to reload sing-box.service: Job type reload is not applicable for unit sing-box.service.');
+    }
+    return { stdout: '', stderr: '' };
+  };
+  const res = await deployMachine(ssh, {}, { log: {} }, OPTS);
+  assert.equal(res.ok, true);
+  assert.equal(res.rolledBack, undefined);
+  assert.ok(ssh.calls.some((c) => c.includes('systemctl restart sing-box')));
+  // 无回滚恢复(cp xxx.bak xxx)与二次 reload
+  assert.ok(!ssh.calls.some((c) => c.includes('.bak ')));
+  assert.equal(ssh.calls.filter((c) => c.includes('systemctl reload')).length, 1);
+});
+
 test('reload failure: restore backup, reload again, rolledBack=true', async () => {
   const ssh = fakeSsh({ failOn: 'systemctl reload' });
   const res = await deployMachine(ssh, {}, { log: {} }, OPTS);

@@ -37,6 +37,7 @@ After=network.target
 [Service]
 Type=simple
 ExecStart=${bin} run -c ${cfg}
+ExecReload=/bin/kill -HUP $MAINPID
 Restart=on-failure
 RestartSec=5
 
