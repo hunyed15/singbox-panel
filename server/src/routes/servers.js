@@ -207,6 +207,21 @@ export function makeServersRouter({ db, crypto, appSecret, ssh, config }) {
       steps.push('unit');
       await ssh.exec(conn, 'mkdir -p /etc/systemd/system');
       await ssh.writeFile(conn, `/etc/systemd/system/${config.singboxUnit}.service`, UNIT_FILE(config.singboxBin, config.singboxConfig));
+      // 最小合法配置,让服务装完即可启动(之后建节点 deploy 会覆盖为真实配置)
+      await ssh.writeFile(
+        conn,
+        config.singboxConfig,
+        JSON.stringify(
+          {
+            log: { level: 'info', timestamp: true },
+            inbounds: [],
+            outbounds: [{ type: 'direct', tag: 'direct' }],
+            route: { final: 'direct' },
+          },
+          null,
+          2,
+        ),
+      );
       await ssh.exec(conn, `systemctl daemon-reload && systemctl enable --now ${config.singboxUnit}`);
       steps.push('enable');
     } else if (action === 'restart') {

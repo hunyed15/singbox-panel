@@ -56,6 +56,25 @@ test('checkAllServers: online/inactive/offline classification + version + last_s
   for (const s of list) assert.ok(s.last_seen, 'last_seen set');
 });
 
+test('reachable but service not running -> inactive (not offline), version empty', async () => {
+  const db = makeDb();
+  const ssh = {
+    buildConn: (row) => ({ id: row.id }),
+    exec: async (conn, cmd) => {
+      // 模拟:二进制缺失(version 空)+ is-active 非 active(命令以 || echo inactive 结尾,退出码 0)
+      if (cmd.includes('version')) return { stdout: '', stderr: '' };
+      return { stdout: 'inactive\n', stderr: '' };
+    },
+  };
+  const list = await checkAllServers(db, ssh, null, {
+    singboxBin: 'sing-box',
+    singboxUnit: 'sing-box',
+  });
+  const s1 = list.find((s) => s.name === 's1');
+  assert.equal(s1.ping_status, 'inactive');
+  assert.equal(s1.singbox_version, '');
+});
+
 test('checkAllServers: buildConn throws (bad creds/agent) -> offline, no 500', async () => {
   const db = makeDb();
   // 补一台 agent 模式(空凭据)服务器

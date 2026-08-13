@@ -19,8 +19,12 @@ export async function checkAllServers(db, ssh, crypto, config, serverRows = null
   const checkOne = async (row) => {
     try {
       const conn = ssh.buildConn(row); // 凭据异常/解密失败也计入 offline,不打断整批
-      const ver = await ssh.exec(conn, `${config.singboxBin} version | head -1`);
-      const act = await ssh.exec(conn, `systemctl is-active ${config.singboxUnit}`);
+      // version/is-active 容忍非 0 退出:仅真实 SSH 失败才算 offline
+      const ver = await ssh.exec(
+        conn,
+        `${config.singboxBin} version 2>/dev/null | head -1; true`,
+      );
+      const act = await ssh.exec(conn, `systemctl is-active ${config.singboxUnit} || echo inactive`);
       const version = parseVersion(ver.stdout);
       const status = act.stdout.trim() === 'active' ? 'online' : 'inactive';
       update.run(status, version, new Date().toISOString(), row.id);
