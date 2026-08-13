@@ -19,7 +19,7 @@ export async function checkAllServers(db, ssh, crypto, config, serverRows = null
 
   const checkOne = async (row) => {
     try {
-      const conn = ssh.buildConn(row); // 凭据异常/解密失败也计入 offline,不打断整批
+      const conn = ssh.buildConn(row, crypto.decrypt, config.appSecret); // 凭据异常/解密失败也计入 offline,不打断整批
       // version/is-active 容忍非 0 退出:仅真实 SSH 失败才算 offline
       const ver = await ssh.exec(
         conn,

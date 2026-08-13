@@ -1,7 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { initDb } from '../src/db.js';
+import { encrypt, decrypt } from '../src/crypto.js';
 import { parseVersion, checkAllServers } from '../src/probe.js';
+import { buildConn as realBuildConn } from '../src/ssh.js';
 
 test('parseVersion extracts bare version', () => {
   assert.equal(parseVersion('sing-box 1.11.0'), '1.11.0');
@@ -42,7 +44,7 @@ test('checkAllServers: online/inactive/offline classification + version + last_s
     return orig(conn, cmd);
   };
 
-  const list = await checkAllServers(db, ssh, null, {
+  const list = await checkAllServers(db, ssh, { decrypt: () => "secret" }, {
     singboxBin: 'sing-box',
     singboxUnit: 'sing-box',
   });
@@ -66,7 +68,7 @@ test('reachable but service not running -> inactive (not offline), version empty
       return { stdout: 'inactive\n', stderr: '' };
     },
   };
-  const list = await checkAllServers(db, ssh, null, {
+  const list = await checkAllServers(db, ssh, { decrypt: () => "secret" }, {
     singboxBin: 'sing-box',
     singboxUnit: 'sing-box',
   });
@@ -94,13 +96,37 @@ test('checkAllServers: buildConn throws (bad creds/agent) -> offline, no 500', a
         : { stdout: 'sing-box 1.13.18\n', stderr: '' },
   };
   // 必须 resolve(不抛),agent 那台标记 offline
-  const list = await checkAllServers(db, ssh, null, {
+  const list = await checkAllServers(db, ssh, { decrypt: () => "secret" }, {
     singboxBin: 'sing-box',
     singboxUnit: 'sing-box',
   });
   const sx = list.find((s) => s.name === 'sx');
   assert.equal(sx.ping_status, 'offline');
   assert.equal(sx.singbox_version, '');
+  const s1 = list.find((s) => s.name === 's1');
+  assert.equal(s1.ping_status, 'online');
+  assert.equal(s1.singbox_version, '1.13.18');
+});
+
+test('integration: real buildConn (3-arg) + decrypted creds works (regression: decrypt is not a function)', async () => {
+  const db = initDb(':memory:');
+  const secret = 'a'.repeat(32);
+  db.prepare(
+    `INSERT INTO servers (name,role,host,ssh_user,ssh_auth_type,ssh_auth_secret)
+     VALUES ('s1','relay','203.0.113.11','root','password',?)`,
+  ).run(encrypt(secret, 'pw'));
+  const ssh = {
+    buildConn: (row, dec, appSecret) => realBuildConn(row, dec, appSecret),
+    exec: async (conn, cmd) =>
+      cmd.includes('is-active')
+        ? { stdout: 'active\n', stderr: '' }
+        : { stdout: 'sing-box 1.13.18\n', stderr: '' },
+  };
+  const list = await checkAllServers(db, ssh, { decrypt }, {
+    singboxBin: 'sing-box',
+    singboxUnit: 'sing-box',
+    appSecret: secret,
+  });
   const s1 = list.find((s) => s.name === 's1');
   assert.equal(s1.ping_status, 'online');
   assert.equal(s1.singbox_version, '1.13.18');
@@ -130,6 +156,6 @@ test('concurrency is bounded (max 3 parallel)', async () => {
   db.prepare(
     `INSERT INTO servers (name,role,host,ssh_user,ssh_auth_type,ssh_auth_secret) VALUES ('s6','relay','h','root','key','e')`,
   ).run();
-  await checkAllServers(db, ssh, null, { singboxBin: 'sing-box', singboxUnit: 'sing-box' });
+  await checkAllServers(db, ssh, { decrypt: () => "secret" }, { singboxBin: 'sing-box', singboxUnit: 'sing-box' });
   assert.ok(max <= 3, `max concurrent = ${max}`);
 });
