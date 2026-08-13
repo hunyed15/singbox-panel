@@ -15,6 +15,7 @@ export async function checkAllServers(db, ssh, crypto, config, serverRows = null
   const update = db.prepare(
     'UPDATE servers SET ping_status = ?, singbox_version = ?, last_seen = ? WHERE id = ?',
   );
+  const errors = {};
 
   const checkOne = async (row) => {
     try {
@@ -28,7 +29,9 @@ export async function checkAllServers(db, ssh, crypto, config, serverRows = null
       const version = parseVersion(ver.stdout);
       const status = act.stdout.trim() === 'active' ? 'online' : 'inactive';
       update.run(status, version, new Date().toISOString(), row.id);
-    } catch {
+    } catch (err) {
+      errors[row.id] = err.message || String(err);
+      console.error(`[probe] server #${row.id} (${row.name}) offline:`, errors[row.id]);
       update.run('offline', '', new Date().toISOString(), row.id);
     }
   };
@@ -37,5 +40,8 @@ export async function checkAllServers(db, ssh, crypto, config, serverRows = null
     await Promise.all(list.slice(i, i + CONCURRENCY).map(checkOne));
   }
 
-  return db.prepare('SELECT * FROM servers').all();
+  return db
+    .prepare('SELECT * FROM servers')
+    .all()
+    .map((row) => ({ ...row, last_error: errors[row.id] || undefined }));
 }
