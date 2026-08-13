@@ -188,6 +188,14 @@ export function makeServersRouter({ db, crypto, appSecret, ssh, config }) {
     res.json(await testConnection(conn, ssh.exec));
   });
 
+async function step(label, fn) {
+  try {
+    await fn();
+  } catch (err) {
+    throw new Error(`[${label}] ${err.message}`);
+  }
+}
+
   async function controlAction(action, id) {
     const row = db.prepare('SELECT * FROM servers WHERE id = ?').get(id);
     if (!row) throw new ApiError(404, '服务器不存在');
@@ -195,35 +203,62 @@ export function makeServersRouter({ db, crypto, appSecret, ssh, config }) {
     const steps = [];
 
     if (action === 'install') {
-      const archOut = await ssh.exec(conn, 'uname -m');
-      const arch = archFromUname(archOut.stdout);
+      let arch;
+      await step('架构探测', async () => {
+        const archOut = await ssh.exec(conn, 'uname -m');
+        arch = archFromUname(archOut.stdout);
+      });
       const ver = await resolveSingboxVersion(config);
-      const url = `${config.singboxDownloadBase}/v${ver}/sing-box-${ver}-linux-${arch}.tar.gz`;
+      const asset = `sing-box-${ver}-linux-${arch}.tar.gz`;
+      const url = `${config.singboxDownloadBase}/v${ver}/${asset}`;
       steps.push('download', url);
-      await ssh.exec(conn, `curl -fsSL -o /tmp/singbox.tar.gz '${url}'`);
+      await step('下载', async () => {
+        try {
+          await ssh.exec(conn, `curl -fsSL -o /tmp/singbox.tar.gz '${url}'`);
+        } catch {
+          // GitHub 直连失败 → gh-proxy 镜像兜底
+          const mirror = `https://gh-proxy.org/${url}`;
+          await ssh.exec(conn, `curl -fsSL -o /tmp/singbox.tar.gz '${mirror}'`);
+        }
+      });
       steps.push('extract');
-      await ssh.exec(conn, `mkdir -p /tmp/singbox-extract && tar -xzf /tmp/singbox.tar.gz -C /tmp/singbox-extract`);
-      await ssh.exec(conn, `install -m 755 /tmp/singbox-extract/sing-box-${ver}-linux-${arch}/sing-box ${config.singboxBin}`);
+      await step('解压', async () => {
+        await ssh.exec(conn, `rm -rf /tmp/singbox-extract && mkdir -p /tmp/singbox-extract && tar -xzf /tmp/singbox.tar.gz -C /tmp/singbox-extract`);
+      });
+      await step('安装二进制', async () => {
+        // find 定位二进制,不依赖解压目录名
+        await ssh.exec(
+          conn,
+          `BIN=$(find /tmp/singbox-extract -type f -name sing-box | head -1) && test -n "$BIN" && install -m 755 "$BIN" ${config.singboxBin}`,
+        );
+      });
       steps.push('unit');
-      await ssh.exec(conn, 'mkdir -p /etc/systemd/system');
-      await ssh.writeFile(conn, `/etc/systemd/system/${config.singboxUnit}.service`, UNIT_FILE(config.singboxBin, config.singboxConfig));
+      await step('写 systemd 单元', async () => {
+        await ssh.exec(conn, 'mkdir -p /etc/systemd/system');
+        await ssh.writeFile(conn, `/etc/systemd/system/${config.singboxUnit}.service`, UNIT_FILE(config.singboxBin, config.singboxConfig));
+      });
       // 最小合法配置,让服务装完即可启动(之后建节点 deploy 会覆盖为真实配置)
-      await ssh.writeFile(
-        conn,
-        config.singboxConfig,
-        JSON.stringify(
-          {
-            log: { level: 'info', timestamp: true },
-            inbounds: [],
-            outbounds: [{ type: 'direct', tag: 'direct' }],
-            route: { final: 'direct' },
-          },
-          null,
-          2,
-        ),
-      );
-      await ssh.exec(conn, `systemctl daemon-reload && systemctl enable --now ${config.singboxUnit}`);
+      await step('写最小配置', async () => {
+        await ssh.exec(conn, 'mkdir -p /etc/sing-box');
+        await ssh.writeFile(
+          conn,
+          config.singboxConfig,
+          JSON.stringify(
+            {
+              log: { level: 'info', timestamp: true },
+              inbounds: [],
+              outbounds: [{ type: 'direct', tag: 'direct' }],
+              route: { final: 'direct' },
+            },
+            null,
+            2,
+          ),
+        );
+      });
       steps.push('enable');
+      await step('启动服务', async () => {
+        await ssh.exec(conn, `systemctl daemon-reload && systemctl enable --now ${config.singboxUnit}`);
+      });
     } else if (action === 'restart') {
       await ssh.exec(conn, `systemctl restart ${config.singboxUnit}`);
       steps.push('restart');
