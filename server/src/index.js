@@ -56,11 +56,20 @@ export async function createApp({ config }) {
     res.status(500).json({ error: 'internal error' });
   });
 
-  // 前端静态托管(SPA fallback)
+  // 前端静态托管(SPA fallback;Express 5 弃用 '*' 通配符,用中间件兜底)
   const frontendDist = path.resolve(DIR, '../../frontend/dist');
   if (fs.existsSync(path.join(frontendDist, 'index.html'))) {
     app.use(express.static(frontendDist));
-    app.get('*', (req, res) => res.sendFile(path.join(frontendDist, 'index.html')));
+    app.use((req, res, next) => {
+      if (
+        req.method === 'GET' &&
+        !req.path.startsWith('/api') &&
+        !req.path.startsWith('/sub')
+      ) {
+        return res.sendFile(path.join(frontendDist, 'index.html'));
+      }
+      next();
+    });
   }
 
   return { app, db };
