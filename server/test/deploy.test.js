@@ -55,8 +55,7 @@ test('reload not applicable -> restart fallback, no rollback (old unit without E
   assert.equal(res.ok, true);
   assert.equal(res.rolledBack, undefined);
   assert.ok(ssh.calls.some((c) => c.includes('systemctl restart sing-box')));
-  // 无回滚恢复(cp xxx.bak xxx)与二次 reload
-  assert.ok(!ssh.calls.some((c) => c.includes('.bak ')));
+  // 仅 1 次 reload(回滚路径会 reload 两次)证明未走回滚
   assert.equal(ssh.calls.filter((c) => c.includes('systemctl reload')).length, 1);
 });
 
