@@ -26,7 +26,7 @@ export function loadConfig(env = process.env) {
     singboxDownloadBase:
       env.SINGBOX_DOWNLOAD_BASE ||
       'https://github.com/SagerNet/sing-box/releases/download',
-    singboxVersion: env.SINGBOX_VERSION || '1.11.4',
+    singboxVersion: env.SINGBOX_VERSION || 'latest',
     checkTimeoutMs: parseInt(env.CHECK_TIMEOUT_MS || '15000', 10),
     deployTimeoutMs: parseInt(env.DEPLOY_TIMEOUT_MS || '60000', 10),
   };

@@ -56,6 +56,37 @@ test('checkAllServers: online/inactive/offline classification + version + last_s
   for (const s of list) assert.ok(s.last_seen, 'last_seen set');
 });
 
+test('checkAllServers: buildConn throws (bad creds/agent) -> offline, no 500', async () => {
+  const db = makeDb();
+  // 补一台 agent 模式(空凭据)服务器
+  db.prepare(
+    `INSERT INTO servers (name,role,host,ssh_user,ssh_auth_type,ssh_auth_secret,control) VALUES ('sx','relay','203.0.113.99','root','key','','agent')`,
+  ).run();
+  const ssh = {
+    buildConn: (row) => {
+      if (row.control === 'agent' || !row.ssh_auth_secret) {
+        throw new Error('decrypt failed: empty secret');
+      }
+      return { id: row.id };
+    },
+    exec: async (conn, cmd) =>
+      cmd.includes('is-active')
+        ? { stdout: 'active\n', stderr: '' }
+        : { stdout: 'sing-box 1.13.18\n', stderr: '' },
+  };
+  // 必须 resolve(不抛),agent 那台标记 offline
+  const list = await checkAllServers(db, ssh, null, {
+    singboxBin: 'sing-box',
+    singboxUnit: 'sing-box',
+  });
+  const sx = list.find((s) => s.name === 'sx');
+  assert.equal(sx.ping_status, 'offline');
+  assert.equal(sx.singbox_version, '');
+  const s1 = list.find((s) => s.name === 's1');
+  assert.equal(s1.ping_status, 'online');
+  assert.equal(s1.singbox_version, '1.13.18');
+});
+
 test('concurrency is bounded (max 3 parallel)', async () => {
   const db = makeDb();
   let inflight = 0;

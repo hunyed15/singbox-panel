@@ -4,6 +4,25 @@ import { buildConn, testConnection } from '../ssh.js';
 import { checkAllServers } from '../probe.js';
 
 const CONTROL_LABEL = { install: '安装', restart: '重启', uninstall: '卸载' };
+const FALLBACK_VERSION = '1.13.18';
+
+/** 'latest' → 查询 GitHub 最新 release;失败回退固定版本 */
+async function resolveSingboxVersion(config) {
+  if (config.singboxVersion !== 'latest') return config.singboxVersion;
+  try {
+    const res = await fetch('https://api.github.com/repos/SagerNet/sing-box/releases/latest', {
+      signal: AbortSignal.timeout(15000),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      const tag = data?.tag_name || '';
+      if (/^v?\d+\.\d+\.\d+/.test(tag)) return tag.replace(/^v/, '');
+    }
+  } catch {
+    /* 网络失败走回退 */
+  }
+  return FALLBACK_VERSION;
+}
 
 function archFromUname(out) {
   const m = out.trim();
@@ -178,7 +197,7 @@ export function makeServersRouter({ db, crypto, appSecret, ssh, config }) {
     if (action === 'install') {
       const archOut = await ssh.exec(conn, 'uname -m');
       const arch = archFromUname(archOut.stdout);
-      const ver = config.singboxVersion;
+      const ver = await resolveSingboxVersion(config);
       const url = `${config.singboxDownloadBase}/v${ver}/sing-box-${ver}-linux-${arch}.tar.gz`;
       steps.push('download', url);
       await ssh.exec(conn, `curl -fsSL -o /tmp/singbox.tar.gz '${url}'`);

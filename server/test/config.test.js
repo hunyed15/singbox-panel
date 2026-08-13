@@ -20,6 +20,7 @@ test('defaults applied', () => {
   assert.ok(c.singboxDownloadBase.includes('github.com/SagerNet/sing-box/releases'));
   assert.equal(c.checkTimeoutMs, 15000);
   assert.equal(c.deployTimeoutMs, 60000);
+  assert.equal(c.singboxVersion, 'latest');
   assert.equal(c.jwtSecret, SECRET); // JWT_SECRET 缺省回退 appSecret
 });
 
