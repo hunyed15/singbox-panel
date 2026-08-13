@@ -1,0 +1,8 @@
+node_modules/
+server/data/
+server/.env
+frontend/dist/
+.antd-facts/
+*.log
+.env
+.env.local
