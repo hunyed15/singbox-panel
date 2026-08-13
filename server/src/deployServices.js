@@ -94,9 +94,14 @@ async function ensureCerts(ssh, conn, machine, nodes) {
 
 /** 整机下发:收集 → 生成 → 证书 → deployMachine(含回滚) */
 export async function deployServer(db, ssh, crypto, config, serverId) {
+  const row = db.prepare('SELECT * FROM servers WHERE id = ?').get(serverId);
+  if (!row) throw new ApiError(404, '服务器不存在');
+  if (row.control !== 'ssh') {
+    // V1 仅 SSH;agent 模式机器不参与下发
+    return { ok: false, error: 'agent 模式暂不支持下发(V1 仅 SSH)' };
+  }
   const data = collectMachineData(db, crypto, config.appSecret, serverId);
   const cfg = buildMachineConfig(data);
-  const row = db.prepare('SELECT * FROM servers WHERE id = ?').get(serverId);
   const conn = buildConn(row, crypto.decrypt, config.appSecret);
 
   const steps = await ensureCerts(ssh, conn, data.machine, data.nodes);
