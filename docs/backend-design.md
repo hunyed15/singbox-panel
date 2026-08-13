@@ -4,7 +4,7 @@
 > 日期:2026-08-11
 > 依据:PRD.md(第二次修订版,节点模型)+ docs/ia.md(前端契约,双端共用)
 > 说明:本文档取代 `docs/superpowers/plans/2026-08-11-singbox-panel.md`(旧链路模型,Vue 前端,已废弃)
-> 技术栈:Node.js ≥ 20,Express 5, better-sqlite3, ssh2, jsonwebtoken, bcryptjs, node:test
+> 技术栈:Node.js ≥ 24(内置 `node:sqlite`,零原生依赖,无 ABI/编译问题),Express 5, ssh2, jsonwebtoken, bcryptjs, node:test
 
 ## 1. 目标与范围
 
@@ -27,7 +27,7 @@
 - 面板只生成 `config.json`、SSH 下发、读状态;不承担流量转发、不读流量统计。
 - 允许面板与 sing-box 同机(中心机=落地机 3,V1 统一走 SSH 到本机)。
 
-## 3. 数据模型(SQLite,better-sqlite3)
+## 3. 数据模型(node:sqlite,Node 内置,零原生依赖)
 
 ```sql
 CREATE TABLE IF NOT EXISTS servers (

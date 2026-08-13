@@ -33,7 +33,10 @@ test('ensureAdmin seeds only when users empty', () => {
   const db = initDb(':memory:');
   ensureAdmin(db, { username: 'admin', passwordHash: 'h1' });
   ensureAdmin(db, { username: 'other', passwordHash: 'h2' });
-  const rows = db.prepare('SELECT username FROM users').all();
+  const rows = db
+    .prepare('SELECT username FROM users')
+    .all()
+    .map((r) => ({ ...r }));
   assert.deepEqual(rows, [{ username: 'admin' }]);
 });
 

@@ -3,13 +3,15 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
   "scripts": {
     "dev": "node src/index.js",
     "test": "node --test"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
-    "better-sqlite3": "^13.0.3",
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.3",
     "ssh2": "^1.17.0"

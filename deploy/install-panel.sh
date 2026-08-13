@@ -6,9 +6,9 @@ PANEL_DIR=/opt/singbox-panel
 ENV_FILE=/etc/singbox-panel/panel.env
 export DEBIAN_FRONTEND=noninteractive
 
-echo "==> 1/5 安装 Node.js 20+(nodesource)"
-if ! command -v node >/dev/null 2>&1 || [ "$(node -v | cut -d. -f1 | tr -d 'v')" -lt 20 ]; then
-  curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+echo "==> 1/5 安装 Node.js 24+(nodesource;node:sqlite 内置数据库,零原生依赖)"
+if ! command -v node >/dev/null 2>&1 || [ "$(node -v | cut -d. -f1 | tr -d 'v')" -lt 24 ]; then
+  curl -fsSL https://deb.nodesource.com/setup_24.x | bash -
   apt-get install -y nodejs
 fi
 
