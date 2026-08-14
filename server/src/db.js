@@ -80,33 +80,36 @@ export function initDb(dbPath) {
   return db;
 }
 
-/** Reality 借站域名库内置种子(仅空表时插入,可编辑/删除) */
+/** Reality 借站域名库内置种子(仅空表时插入,可编辑/删除)。
+ * ✓实测可用/⚠️实测不兼容 标注基于 2026-08 CoreNet(HK)实测;结果与机器网络路径相关,各地可能不同。 */
 const SNI_SEED = [
-  ['www.microsoft.com', '微软官网'],
-  ['www.apple.com', 'Apple 官网'],
-  ['dl.google.com', 'Google 下载'],
+  ['www.microsoft.com', '微软官网 ⚠️实测不兼容'],
+  ['www.apple.com', 'Apple 官网 ⚠️实测不兼容'],
+  ['dl.google.com', 'Google 下载 ✓实测可用'],
   ['www.google.com', 'Google'],
   ['www.youtube.com', 'YouTube'],
-  ['www.cloudflare.com', 'Cloudflare'],
+  ['www.cloudflare.com', 'Cloudflare ✓实测可用'],
   ['gateway.icloud.com', 'iCloud'],
   ['swdist.apple.com', 'Apple 软件更新'],
-  ['www.bing.com', 'Bing'],
+  ['www.bing.com', 'Bing ✓实测可用'],
   ['support.microsoft.com', '微软支持'],
   ['www.office.com', 'Microsoft 365'],
   ['www.amazon.com', 'Amazon'],
-  ['www.yahoo.com', 'Yahoo'],
-  ['www.oracle.com', 'Oracle'],
-  ['www.nvidia.com', 'NVIDIA'],
-  ['www.adobe.com', 'Adobe'],
-  ['www.samsung.com', 'Samsung'],
-  ['www.facebook.com', 'Facebook'],
-  ['www.instagram.com', 'Instagram'],
-  ['www.tiktok.com', 'TikTok'],
-  ['discord.com', 'Discord'],
-  ['www.netflix.com', 'Netflix'],
+  ['www.yahoo.com', 'Yahoo ⚠️实测不兼容'],
+  ['www.oracle.com', 'Oracle ✓实测可用'],
+  ['www.nvidia.com', 'NVIDIA ✓实测可用'],
+  ['www.adobe.com', 'Adobe ✓实测可用'],
+  ['www.samsung.com', '三星 ✓实测可用'],
+  ['www.facebook.com', 'Facebook ⚠️实测不兼容'],
+  ['www.instagram.com', 'Instagram ⚠️实测不兼容'],
+  ['www.tiktok.com', 'TikTok ⚠️实测不兼容'],
+  ['discord.com', 'Discord ⚠️实测不兼容'],
+  ['www.netflix.com', 'Netflix ✓实测可用'],
+  ['www.tesla.com', 'Tesla ✓实测可用'],
+  ['www.cisco.com', 'Cisco ✓实测可用'],
   ['www.spotify.com', 'Spotify'],
   ['chat.openai.com', 'OpenAI'],
-  ['www.paypal.com', 'PayPal'],
+  ['www.paypal.com', 'PayPal ✓实测可用'],
 ];
 
 function seedSniLibrary(db) {
