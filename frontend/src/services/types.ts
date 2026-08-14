@@ -110,6 +110,9 @@ export interface NodeCreateInput {
   /** 隧道模板:固定转发目标 */
   tunnelAddress?: string;
   tunnelPort?: number;
+  /** socks/http 可选认证(留空=开放代理,易被扫描滥用) */
+  authUser?: string;
+  authPassword?: string;
 }
 
 export interface SniItem {
@@ -133,6 +136,9 @@ export interface NodePatch {
   /** 隧道节点:固定转发目标 */
   tunnelAddress?: string;
   tunnelPort?: number;
+  /** socks/http 可选认证 */
+  authUser?: string;
+  authPassword?: string;
 }
 
 export type DeployResult =

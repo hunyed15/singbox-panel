@@ -67,9 +67,13 @@ export function buildInbound({ node, machine }) {
         tls: tlsSelfSigned(machine),
       };
     case 'socks':
-      return { type: 'socks', ...listen };
+      return node.creds.username
+        ? { type: 'socks', ...listen, users: [{ username: node.creds.username, password: node.creds.password }] }
+        : { type: 'socks', ...listen };
     case 'http':
-      return { type: 'http', ...listen };
+      return node.creds.username
+        ? { type: 'http', ...listen, users: [{ username: node.creds.username, password: node.creds.password }] }
+        : { type: 'http', ...listen };
     case 'tunnel':
       return {
         type: 'direct',

@@ -161,9 +161,13 @@ function buildClientOutbound(view) {
     case 'naive':
       return { type: 'naive', tag, server: host, server_port: port, username: c.username, password: c.password, tls: tlsInsecure(host) };
     case 'socks':
-      return { type: 'socks', tag, server: host, server_port: port };
+      return c.username
+        ? { type: 'socks', tag, server: host, server_port: port, username: c.username, password: c.password }
+        : { type: 'socks', tag, server: host, server_port: port };
     case 'http':
-      return { type: 'http', tag, server: host, server_port: port };
+      return c.username
+        ? { type: 'http', tag, server: host, server_port: port, username: c.username, password: c.password }
+        : { type: 'http', tag, server: host, server_port: port };
     case 'tunnel':
       return null;
   }

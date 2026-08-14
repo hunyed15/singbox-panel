@@ -70,6 +70,14 @@ test('toSingboxConfig: mixed in 2080 + all client outbounds + selector + direct'
   // 自签 TLS 出站带 insecure
   const trojan = cfg.outbounds.find((o) => o.type === 'trojan');
   assert.equal(trojan.tls.insecure, true);
+  // socks 带认证 → 出站含 username/password
+  const socks = cfg.outbounds.find((o) => o.type === 'socks');
+  assert.equal(socks.username, undefined); // 无凭据的 socks 不带 auth
+  const socksWithAuth = toSingboxConfig([
+    { ...makeViews()[0], protocol: 'socks', creds: { username: 'u', password: 'p' } },
+  ]).outbounds.find((o) => o.type === 'socks');
+  assert.equal(socksWithAuth.username, 'u');
+  assert.equal(socksWithAuth.password, 'p');
   // shadowtls 出站形态
   const st = cfg.outbounds.find((o) => o.type === 'shadowtls');
   assert.equal(st.version, 3);

@@ -28,6 +28,8 @@ interface FormValues {
   port?: number;
   tunnelAddress?: string;
   tunnelPort?: number;
+  authUser?: string;
+  authPassword?: string;
 }
 
 const TEMPLATES: { key: NodeTemplate; title: string; desc: string }[] = [
@@ -106,6 +108,10 @@ export function NodeCreateModal({
         port: values.port ? Number(values.port) : undefined,
         tunnelAddress: isTunnel ? values.tunnelAddress : undefined,
         tunnelPort: isTunnel && values.tunnelPort ? Number(values.tunnelPort) : undefined,
+        authUser:
+          template === 'socks' || template === 'http' ? values.authUser : undefined,
+        authPassword:
+          template === 'socks' || template === 'http' ? values.authPassword : undefined,
       });
       onCreated(result);
     } catch (err) {
@@ -224,6 +230,25 @@ export function NodeCreateModal({
           >
             <Select options={landingOptions} />
           </Form.Item>
+        )}
+        {(template === 'socks' || template === 'http') && (
+          <>
+            <Alert
+              type="warning"
+              showIcon
+              message="开放代理易被扫描滥用"
+              description="建议填写用户名与密码;留空 = 任何人都能使用该代理(公网端口会被扫描器利用)。"
+              style={{ marginBottom: 16 }}
+            />
+            <Flex gap={16}>
+              <Form.Item name="authUser" label="用户名(可选)" style={{ flex: 1 }}>
+                <Input placeholder="如 sb-user" autoComplete="off" />
+              </Form.Item>
+              <Form.Item name="authPassword" label="密码(可选)" style={{ flex: 1 }}>
+                <Input.Password placeholder="设置密码" autoComplete="new-password" />
+              </Form.Item>
+            </Flex>
+          </>
         )}
         {template === 'naive' && (
           <Alert

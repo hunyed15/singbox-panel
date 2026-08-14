@@ -43,6 +43,8 @@ interface FormValues {
   sni?: string;
   tunnelAddress?: string;
   tunnelPort?: number;
+  authUser?: string;
+  authPassword?: string;
 }
 
 const PROTOCOL_OPTIONS = (Object.keys(PROTOCOL_META) as NodeProtocol[]).map((p) => ({
@@ -117,6 +119,14 @@ export function NodeEditModal({ open, node, landings, snis, onClose, onSaved }: 
             : undefined,
         tunnelAddress: isTunnel ? values.tunnelAddress : undefined,
         tunnelPort: isTunnel && values.tunnelPort ? Number(values.tunnelPort) : undefined,
+        authUser:
+          values.protocol === 'socks' || values.protocol === 'http'
+            ? values.authUser
+            : undefined,
+        authPassword:
+          values.protocol === 'socks' || values.protocol === 'http'
+            ? values.authPassword
+            : undefined,
       });
       onSaved(result);
     } catch (err) {
@@ -212,6 +222,25 @@ export function NodeEditModal({ open, node, landings, snis, onClose, onSaved }: 
           >
             <Select options={landingOptions} />
           </Form.Item>
+        )}
+        {(protocol === 'socks' || protocol === 'http') && (
+          <>
+            <Alert
+              type="warning"
+              showIcon
+              message="开放代理易被扫描滥用"
+              description="建议填写用户名与密码;两项留空 = 任何人都能使用该代理。"
+              style={{ marginBottom: 16 }}
+            />
+            <Flex gap={16}>
+              <Form.Item name="authUser" label="用户名(留空清除认证)" style={{ flex: 1 }}>
+                <Input autoComplete="off" />
+              </Form.Item>
+              <Form.Item name="authPassword" label="密码" style={{ flex: 1 }}>
+                <Input.Password autoComplete="new-password" />
+              </Form.Item>
+            </Flex>
+          </>
         )}
         {protocol === 'naive' && (
           <Alert

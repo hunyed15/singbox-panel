@@ -92,6 +92,17 @@ test('socks / http: plain, no creds, no tls', () => {
     const ib = buildInbound({ node: node({ protocol }), machine: MACHINE });
     assert.equal(ib.type, protocol);
     assert.equal(ib.tls, undefined);
+    assert.equal(ib.users, undefined);
+  }
+});
+
+test('socks / http: with auth -> users with username+password', () => {
+  for (const protocol of ['socks', 'http']) {
+    const ib = buildInbound({
+      node: node({ protocol, creds: { username: 'sb-user', password: 'pw' } }),
+      machine: MACHINE,
+    });
+    assert.deepEqual(ib.users, [{ username: 'sb-user', password: 'pw' }]);
   }
 });
 

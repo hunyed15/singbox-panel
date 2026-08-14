@@ -568,6 +568,10 @@ export const createNode = async (
   const meta = TEMPLATE_META[template];
   const id = nextNodeId++;
   const creds = makeCreds(meta.protocol, server, meta.protocol === 'vless' ? payload.sni : undefined);
+  if ((meta.protocol === 'socks' || meta.protocol === 'http') && (payload.authUser || payload.authPassword)) {
+    creds.username = payload.authUser;
+    creds.password = payload.authPassword;
+  }
   credsById.set(id, creds);
   const landing = landingServerId ? servers.find((s) => s.id === landingServerId) : undefined;
   const port = payload.port ? Number(payload.port) : nextFreePort(serverId);
@@ -652,6 +656,14 @@ export const updateNode = async (
     next.tls_mode = PROTOCOL_DEFAULTS[payload.protocol].tlsMode;
     next.transport = PROTOCOL_DEFAULTS[payload.protocol].transport;
     credsById.set(id, makeCreds(payload.protocol, server));
+  }
+
+  // socks/http 认证
+  if ((next.protocol === 'socks' || next.protocol === 'http') && payload.authUser !== undefined) {
+    const creds = credsById.get(id) ?? {};
+    creds.username = payload.authUser || undefined;
+    creds.password = payload.authUser ? payload.authPassword : undefined;
+    credsById.set(id, creds);
   }
 
   // SNI(Reality)

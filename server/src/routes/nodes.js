@@ -121,6 +121,14 @@ export function makeNodesRouter({ db, crypto, appSecret, ssh, config }) {
     if (b.port) assertPortFree(db, serverId, port);
 
     const creds = genNodeCreds(meta.protocol);
+    // socks/http 可选用户名密码认证(留空 = 开放代理,易被扫描滥用)
+    if (meta.protocol === 'socks' || meta.protocol === 'http') {
+      if (b.authUser || b.authPassword) {
+        if (!b.authUser || !b.authPassword) throw new ApiError(400, '认证需要同时填写用户名与密码');
+        creds.username = String(b.authUser).trim();
+        creds.password = String(b.authPassword);
+      }
+    }
     const { sni, wsPath } = nodeDefaults(meta.protocol, server.host, b.sni);
 
     let tunnelAddress = '';
@@ -184,6 +192,13 @@ export function makeNodesRouter({ db, crypto, appSecret, ssh, config }) {
       wsPath = defaults.wsPath;
     } else if (b.sni !== undefined && (protocol === 'vless' || protocol === 'shadowtls')) {
       sni = b.sni.trim() || sni;
+    }
+
+    // socks/http 认证:authUser 显式提供(含空串=清除认证)时生效
+    if ((protocol === 'socks' || protocol === 'http') && b.authUser !== undefined) {
+      if (b.authUser && !b.authPassword) throw new ApiError(400, '认证需要同时填写用户名与密码');
+      creds.username = b.authUser ? String(b.authUser).trim() : undefined;
+      creds.password = b.authUser ? String(b.authPassword) : undefined;
     }
 
     const outboundType = b.outboundType ?? row.outbound_type;

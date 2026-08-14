@@ -106,6 +106,15 @@ test('full flow: servers -> nodes -> edit -> subscribe -> settings', async () =>
   // 建 SOCKS 直连 + 隧道
   const n2 = await authPost('/api/nodes', { template: 'socks', name: 'socks', serverId: relayId, outboundType: 'direct' });
   assert.equal(n2.body.node.share_link, null);
+  // socks 认证:只填用户不填密码 → 400
+  const badAuth = await authPost('/api/nodes', { template: 'http', name: 'x', serverId: relayId, outboundType: 'direct', authUser: 'u' });
+  assert.equal(badAuth.status, 400);
+  // socks 带认证创建成功,配置含 users
+  const nAuth = await authPost('/api/nodes', { template: 'socks', name: 'socks-auth', serverId: relayId, outboundType: 'direct', authUser: 'sb-user', authPassword: 'pw123' });
+  assert.equal(nAuth.status, 200);
+  const authCfg = ssh.written.find((w) => w.path.includes('config.json') && w.content.includes('sb-user'));
+  assert.ok(authCfg, 'socks 认证应写入配置 users');
+  assert.ok(authCfg.content.includes('pw123'));
   const n3 = await authPost('/api/nodes', { template: 'tunnel', name: 'v6隧道', serverId: relayId, outboundType: 'direct', tunnelAddress: '2001:db8::24', tunnelPort: 8388 });
   assert.equal(n3.body.node.tunnel_address, '2001:db8::24');
 
@@ -156,6 +165,7 @@ test('full flow: servers -> nodes -> edit -> subscribe -> settings', async () =>
   await authDel(`/api/nodes/${n1Id}`);
   await authDel(`/api/nodes/${n2.body.node.id}`);
   await authDel(`/api/nodes/${n3.body.node.id}`);
+  await authDel(`/api/nodes/${nAuth.body.node.id}`);
   const del2 = await authDel(`/api/servers/${relayId}`);
   assert.equal(del2.status, 200);
 });
