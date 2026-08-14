@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS servers (
   ssh_user TEXT NOT NULL DEFAULT 'root',
   ssh_auth_type TEXT NOT NULL DEFAULT 'key' CHECK(ssh_auth_type IN ('key','password')),
   ssh_auth_secret TEXT NOT NULL DEFAULT '',
+  ssh_sudo INTEGER NOT NULL DEFAULT 0,   -- 1 = 命令经 sudo -n 执行(甲骨文等仅给普通用户的机器)
   region TEXT NOT NULL DEFAULT '',
   ping_status TEXT NOT NULL DEFAULT 'unknown' CHECK(ping_status IN ('online','inactive','offline','unknown')),
   singbox_version TEXT NOT NULL DEFAULT '',
@@ -76,8 +77,17 @@ export function initDb(dbPath) {
   db.exec('PRAGMA journal_mode = WAL');
   db.exec('PRAGMA foreign_keys = ON');
   db.exec(DDL);
+  migrate(db);
   seedSniLibrary(db);
   return db;
+}
+
+/** 轻量迁移:存量库补列 */
+function migrate(db) {
+  const cols = db.prepare('PRAGMA table_info(servers)').all().map((c) => c.name);
+  if (!cols.includes('ssh_sudo')) {
+    db.exec('ALTER TABLE servers ADD COLUMN ssh_sudo INTEGER NOT NULL DEFAULT 0');
+  }
 }
 
 /** Reality 借站域名库内置种子(仅空表时插入,可编辑/删除)。

@@ -38,6 +38,13 @@ test('buildConn: defaults port 22 / user root', () => {
   assert.equal(conn.username, 'root');
 });
 
+test('buildConn: sudo flag from ssh_sudo', () => {
+  const sudo = buildConn(row({ ssh_sudo: 1 }), (s, t) => t, SECRET);
+  assert.equal(sudo.sudo, true);
+  const normal = buildConn(row({ ssh_sudo: 0 }), (s, t) => t, SECRET);
+  assert.equal(normal.sudo, false);
+});
+
 test('testConnection: ok when echo returns ok', async () => {
   const exec = async () => ({ stdout: 'ok\n', stderr: '' });
   const res = await testConnection({}, exec);

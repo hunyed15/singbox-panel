@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Alert, App, Flex, Form, Input, InputNumber, Modal, Select } from 'antd';
+import { Alert, App, Flex, Form, Input, InputNumber, Modal, Select, Switch } from 'antd';
 import { api } from '../services';
 import type { ControlMode, Server, ServerInput, ServerRole, SshAuthType } from '../services/types';
 
@@ -20,6 +20,7 @@ interface FormValues {
   sshUser: string;
   sshAuthType: SshAuthType;
   sshAuthSecret: string;
+  sshSudo: boolean;
 }
 
 const ROLE_OPTIONS = [
@@ -63,6 +64,7 @@ export function ServerFormModal({ open, record, onClose, onSaved }: ServerFormMo
         sshUser: record.ssh_user,
         sshAuthType: record.ssh_auth_type,
         sshAuthSecret: '',
+        sshSudo: record.ssh_sudo === 1,
       });
     } else {
       form.setFieldsValue({
@@ -75,6 +77,7 @@ export function ServerFormModal({ open, record, onClose, onSaved }: ServerFormMo
         sshUser: 'root',
         sshAuthType: 'key',
         sshAuthSecret: '',
+        sshSudo: false,
       });
     }
   }, [open, record, form]);
@@ -100,6 +103,7 @@ export function ServerFormModal({ open, record, onClose, onSaved }: ServerFormMo
         base.sshUser = values.sshUser;
         base.sshAuthType = values.sshAuthType;
         base.sshAuthSecret = values.sshAuthSecret;
+        base.sshSudo = values.sshSudo;
       }
       if (isEdit) {
         const secret = values.sshAuthSecret?.trim();
@@ -194,6 +198,9 @@ export function ServerFormModal({ open, record, onClose, onSaved }: ServerFormMo
             </Flex>
             <Form.Item name="sshAuthType" label="认证方式" rules={[{ required: true }]}>
               <Select options={AUTH_OPTIONS} />
+            </Form.Item>
+            <Form.Item name="sshSudo" label="需要 sudo" valuePropName="checked" tooltip="甲骨文等机器默认用户非 root(如 opc/ubuntu),命令需 sudo 提权;勾选后所有命令经 sudo -n 执行(需该用户免密 sudo)">
+              <Switch />
             </Form.Item>
             <Form.Item
               name="sshAuthSecret"

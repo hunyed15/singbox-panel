@@ -52,6 +52,8 @@ export interface Server {
   ssh_port: number;
   ssh_user: string;
   ssh_auth_type: SshAuthType;
+  /** 1 = 命令经 sudo -n 执行(甲骨文等仅给普通用户的机器) */
+  ssh_sudo: number;
   region: string;
   ping_status: PingStatus;
   singbox_version: string;
@@ -71,6 +73,7 @@ export interface ServerInput {
   sshUser?: string;
   sshAuthType?: SshAuthType;
   sshAuthSecret?: string;
+  sshSudo?: boolean;
 }
 
 export interface NodeItem {

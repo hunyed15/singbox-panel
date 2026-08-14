@@ -80,9 +80,10 @@ test('full flow: servers -> nodes -> edit -> subscribe -> settings', async () =>
   const authDel = (p) => request(app).delete(p).set('Authorization', `Bearer ${token}`);
 
   // 建中转机 + 落地机(自动生成机器级凭据)
-  const r1 = await authPost('/api/servers', { name: 'hk1', role: 'relay', control: 'ssh', region: 'HK', host: '203.0.113.11', sshAuthSecret: 'PRIV' });
+  const r1 = await authPost('/api/servers', { name: 'hk1', role: 'relay', control: 'ssh', region: 'HK', host: '203.0.113.11', sshAuthSecret: 'PRIV', sshSudo: true });
   assert.equal(r1.status, 200);
   const relayId = r1.body.id;
+  assert.equal(r1.body.ssh_sudo, 1);
   assert.equal(db.prepare('SELECT COUNT(*) c FROM relay_settings WHERE server_id=?').get(relayId).c, 1);
 
   const r2 = await authPost('/api/servers', { name: 'kr3', role: 'landing', control: 'ssh', region: 'KR', host: '203.0.113.23', sshAuthSecret: 'PRIV' });

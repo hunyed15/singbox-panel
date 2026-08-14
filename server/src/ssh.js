@@ -1,11 +1,12 @@
 import { Client } from 'ssh2';
 
-/** 按服务器行组装 ssh2 连接参数(凭据解密后使用) */
+/** 按服务器行组装 ssh2 连接参数(凭据解密后使用);sudo 标记随 conn 传递 */
 export function buildConn(serverRow, decrypt, appSecret) {
   const base = {
     host: serverRow.host,
     port: serverRow.ssh_port || 22,
     username: serverRow.ssh_user || 'root',
+    sudo: serverRow.ssh_sudo === 1 || serverRow.ssh_sudo === true,
   };
   const secret = decrypt(appSecret, serverRow.ssh_auth_secret);
   if (serverRow.ssh_auth_type === 'password') {
@@ -14,8 +15,9 @@ export function buildConn(serverRow, decrypt, appSecret) {
   return { ...base, privateKey: secret };
 }
 
-/** 远程执行命令;exit code 非 0 或超时 → reject。超时由调用方控制(默认 30s)。 */
+/** 远程执行命令;exit code 非 0 或超时 → reject。conn.sudo 时命令经 sudo -n 执行。 */
 export function exec(conn, cmd, timeoutMs = 30000) {
+  const finalCmd = conn.sudo ? `sudo -n -- ${cmd}` : cmd;
   return new Promise((resolve, reject) => {
     const c = new Client();
     let settled = false;
@@ -26,10 +28,10 @@ export function exec(conn, cmd, timeoutMs = 30000) {
       c.end();
       fn(...args);
     };
-    const timer = setTimeout(() => finish(reject, new Error(`ssh exec timeout: ${cmd}`)), timeoutMs);
+    const timer = setTimeout(() => finish(reject, new Error(`ssh exec timeout: ${finalCmd}`)), timeoutMs);
 
     c.on('ready', () => {
-      c.exec(cmd, (err, stream) => {
+      c.exec(finalCmd, (err, stream) => {
         if (err) return finish(reject, err);
         let stdout = '';
         let stderr = '';
@@ -46,8 +48,19 @@ export function exec(conn, cmd, timeoutMs = 30000) {
   });
 }
 
-/** 经 sftp 写文件(覆盖) */
+/** 经 sftp 写文件(覆盖)。conn.sudo 时:暂存到 /tmp 后 sudo install 到目标(普通用户写不了 /etc) */
 export function writeFile(conn, remotePath, content) {
+  if (conn.sudo) {
+    const name = remotePath.split('/').pop() || `f${Date.now()}`;
+    const stage = `/tmp/panel-stage-${process.pid}-${Date.now()}-${name}`;
+    return sftpWrite(conn, stage, content).then(() =>
+      exec(conn, `install -m 600 '${stage}' '${remotePath}' && rm -f '${stage}'`),
+    );
+  }
+  return sftpWrite(conn, remotePath, content);
+}
+
+function sftpWrite(conn, remotePath, content) {
   return new Promise((resolve, reject) => {
     const c = new Client();
     let settled = false;
