@@ -14,7 +14,8 @@ export function buildRelayOutbound({ nodeId, landing }) {
 }
 
 export function buildRelayRule({ port, nodeId }) {
-  return { inbound: [String(port)], outbound: `landing-${nodeId}` };
+  // sing-box route 规则的 inbound 字段匹配【入站 tag】而非端口(官方文档:Tags of Inbound)
+  return { inbound: [`relay-in-${port}`], outbound: `landing-${nodeId}` };
 }
 
 export function buildLandingInbound({ landing }) {

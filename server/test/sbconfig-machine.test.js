@@ -59,7 +59,7 @@ test('relay machine: node inbound + landing outbound + rule', () => {
   assert.equal(landingOut.server_port, 32001);
   assert.equal(landingOut.password, 'lpw');
 
-  assert.deepEqual(cfg.route.rules, [{ inbound: ['31001'], outbound: 'landing-7' }]);
+  assert.deepEqual(cfg.route.rules, [{ inbound: ['relay-in-31001'], outbound: 'landing-7' }]);
   assert.equal(cfg.route.final, 'direct');
   assert.equal(cfg.log.level, 'info');
 });

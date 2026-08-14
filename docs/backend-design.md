@@ -178,7 +178,7 @@ CREATE TABLE IF NOT EXISTS users (
 对每台机器聚合其 `enabled=1` 节点:
 
 1. **客户端节点入站**:按 §5.1 逐个生成(`listen:"::", listen_port, tag: relay-in-<port>`)。自签 TLS 模板共用该机证书 `certificate_path/key_path`(见 §5.4)。
-2. **中转出口**(outbound_type=relay 的节点):每个节点一个 `shadowsocks` outbound(tag `landing-<nodeId>`,指向落地机 host:landing_settings.in_port/method/password),route rules `{inbound:["<port>"], outbound:"landing-<nodeId>"}`。
+2. **中转出口**(outbound_type=relay 的节点):每个节点一个 `shadowsocks` outbound(tag `landing-<nodeId>`,指向落地机 host:landing_settings.in_port/method/password),route rules `{inbound:["relay-in-<port>"], outbound:"landing-<nodeId>"}`——**sing-box 的 inbound 规则匹配入站 tag 而非端口**(官方文档:Tags of Inbound)。
 3. **落地机共享入站**(role=landing):`shadowsocks` 入站(in_port, method, password)——中转的基础设施,不占用 nodes。
 
 > 为什么叫「共享」:它是**中转机 → 落地机**之间的内部跳板(ss-2022),不是给客户端连的,所以不进「节点」页、也不进订阅;多台中转机的多个 relay 节点可 detour 到同一落地机的同一个 ss 入站(同一份配置一次下发)。只有 relay 出口的节点才需要它。

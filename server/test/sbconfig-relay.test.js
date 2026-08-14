@@ -20,9 +20,9 @@ test('buildRelayOutbound: shadowsocks to landing, tagged per node', () => {
   assert.equal(out.password, LANDING.password);
 });
 
-test('buildRelayRule: inbound port -> landing tag', () => {
+test('buildRelayRule: inbound tag -> landing tag', () => {
   const rule = buildRelayRule({ port: 31001, nodeId: 7 });
-  assert.deepEqual(rule, { inbound: ['31001'], outbound: 'landing-7' });
+  assert.deepEqual(rule, { inbound: ['relay-in-31001'], outbound: 'landing-7' });
 });
 
 test('buildLandingInbound: shared ss inbound', () => {
