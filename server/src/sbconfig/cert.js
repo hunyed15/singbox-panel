@@ -136,8 +136,8 @@ export function genSelfSignedCert({ commonName, altNames = [] }) {
   const extensions = der(
     0xa3,
     derSeq(
-      derSeq(derOid([2, 5, 29, 19]), der(0x01, [0x01]), derOctetString(basicExtValue)), // basicConstraints critical
-      derSeq(derOid([2, 5, 29, 17]), der(0x01, [0x00]), derOctetString(sanExtValue)), // SAN non-critical
+      derSeq(derOid([2, 5, 29, 19]), der(0x01, [0xff]), derOctetString(basicExtValue)), // basicConstraints critical=TRUE;DER BOOLEAN TRUE 必须为 0xFF(Go 严格)
+      derSeq(derOid([2, 5, 29, 17]), der(0x01, [0x00]), derOctetString(sanExtValue)), // SAN critical=FALSE
     ),
   );
 

@@ -85,4 +85,11 @@ test('self-signed cert: parseable, SAN ok, ~10y validity, ECDSA P-256', () => {
 
   // 自签证书:用自己的公钥可验签名
   assert.ok(cert.verify(key));
+
+  // DER 严格性(Go/OpenSSL 严格校验,Node 宽容):basicConstraints 的 critical BOOLEAN TRUE 必须编码为 0xFF
+  const derBuf = Buffer.from(certPem.replace(/-----[^-]+-----/g, '').replace(/\s+/g, ''), 'base64');
+  const basicExtMark = Buffer.from('0603551d130101ff', 'hex'); // OID 2.5.29.19 + BOOL TRUE(0xff)
+  assert.ok(derBuf.includes(basicExtMark), 'basicConstraints critical 布尔应为 0xFF');
+  const sanMark = Buffer.from('0603551d11010100', 'hex'); // OID 2.5.29.17 + BOOL FALSE(01 01 00)
+  assert.ok(derBuf.includes(sanMark), 'SAN critical 布尔应为 0x00');
 });
