@@ -88,6 +88,8 @@ export function NodeEditModal({ open, node, landings, snis, onClose, onSaved }: 
       sni: node.sni,
       tunnelAddress: node.tunnel_address,
       tunnelPort: node.tunnel_port,
+      authUser: node.auth_user,
+      authPassword: node.auth_password,
     });
   }, [open, node, form]);
 
@@ -237,7 +239,7 @@ export function NodeEditModal({ open, node, landings, snis, onClose, onSaved }: 
                 <Input autoComplete="off" />
               </Form.Item>
               <Form.Item name="authPassword" label="密码" style={{ flex: 1 }}>
-                <Input.Password autoComplete="new-password" />
+                <Input autoComplete="off" />
               </Form.Item>
             </Flex>
           </>

@@ -245,7 +245,7 @@ export function NodeCreateModal({
                 <Input placeholder="如 sb-user" autoComplete="off" />
               </Form.Item>
               <Form.Item name="authPassword" label="密码(可选)" style={{ flex: 1 }}>
-                <Input.Password placeholder="设置密码" autoComplete="new-password" />
+                <Input placeholder="设置密码" autoComplete="off" />
               </Form.Item>
             </Flex>
           </>

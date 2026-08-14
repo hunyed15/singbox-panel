@@ -88,6 +88,9 @@ export interface NodeItem {
   /** 隧道节点:固定转发目标(IPv4/IPv6/域名) */
   tunnel_address?: string;
   tunnel_port?: number;
+  /** socks/http 认证凭据(单管理员面板,订阅本就含此凭据;编辑需回显) */
+  auth_user?: string;
+  auth_password?: string;
   outbound_type: OutboundType;
   landing_server_id?: number;
   landing_name?: string;

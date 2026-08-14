@@ -31,8 +31,9 @@ async function deployAffectedMachines(db, ssh, crypto, config, serverId) {
   return { ok: true, steps: results.flatMap((r) => r.steps || []) };
 }
 
-/** 构造 NodeItem(share_link 由后端构建,凭据不进响应) */
+/** 构造 NodeItem(share_link 由后端构建;凭据不进前端,socks/http 的认证字段除外——单管理员面板且订阅本就含该凭据,编辑需回显) */
 function nodeItem(row, serverName, landingName, view) {
+  const isAuth = row.protocol === 'socks' || row.protocol === 'http';
   return {
     id: row.id,
     name: row.name,
@@ -49,6 +50,8 @@ function nodeItem(row, serverName, landingName, view) {
     landing_name: landingName || undefined,
     tunnel_address: row.tunnel_address || undefined,
     tunnel_port: row.tunnel_port ?? undefined,
+    auth_user: isAuth ? view?.creds?.username : undefined,
+    auth_password: isAuth ? view?.creds?.password : undefined,
     share_link: view ? buildShareLink(view) : null,
     note: row.note,
     created_at: row.created_at,

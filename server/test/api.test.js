@@ -112,6 +112,8 @@ test('full flow: servers -> nodes -> edit -> subscribe -> settings', async () =>
   // socks 带认证创建成功,配置含 users
   const nAuth = await authPost('/api/nodes', { template: 'socks', name: 'socks-auth', serverId: relayId, outboundType: 'direct', authUser: 'sb-user', authPassword: 'pw123' });
   assert.equal(nAuth.status, 200);
+  assert.equal(nAuth.body.node.auth_user, 'sb-user'); // 编辑回显凭据
+  assert.equal(nAuth.body.node.auth_password, 'pw123');
   const authCfg = ssh.written.find((w) => w.path.includes('config.json') && w.content.includes('sb-user'));
   assert.ok(authCfg, 'socks 认证应写入配置 users');
   assert.ok(authCfg.content.includes('pw123'));
