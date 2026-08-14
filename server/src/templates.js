@@ -34,7 +34,7 @@ export const PROTOCOL_DEFAULTS = {
 export function genNodeCreds(protocol) {
   switch (protocol) {
     case 'vless':
-      return { uuid: genUuid(), flow: 'xtls-rprx-vision' };
+      return { uuid: genUuid() }; // 不带 flow:见 sbconfig/inbound.js 注释(reality+vision 不兼容)
     case 'vmess':
       return { uuid: genUuid() };
     case 'trojan':

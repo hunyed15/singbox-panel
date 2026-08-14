@@ -1,0 +1,7 @@
+{"log":{"level":"warn","timestamp":true},
+ "inbounds":[{"type":"mixed","listen":"127.0.0.1","listen_port":10800}],
+ "outbounds":[{"type":"vless","tag":"node","server":"156.239.10.253","server_port":31001,
+   "uuid":"a4c3c14a-8987-42a4-8763-4709aa0586cb","flow":"",
+   "tls":{"enabled":true,"server_name":"www.microsoft.com","utls":{"enabled":false,"fingerprint":""},
+          "reality":{"enabled":true,"public_key":"p2QYMgMnUMK9lTmLiV2umBNt1zudlAMs6CkTLW2APj8","short_id":"6bc7f1b746ecd0a0"}}}],
+ "route":{"final":"node"}}

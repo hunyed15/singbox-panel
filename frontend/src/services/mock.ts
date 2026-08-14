@@ -323,7 +323,7 @@ function buildShareLink(
       return (
         `vless://${creds.uuid}@${host}:${port}?encryption=none&security=reality` +
         `&sni=${creds.sni}&fp=chrome&pbk=${creds.publicKey}&sid=${creds.shortId}` +
-        `&type=tcp&flow=${creds.flow ?? 'xtls-rprx-vision'}#${enc}`
+        `&type=tcp#${enc}`
       );
     case 'vmess': {
       const vmess = {

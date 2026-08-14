@@ -24,7 +24,8 @@ export function buildInbound({ node, machine }) {
       return {
         type: 'vless',
         ...listen,
-        users: [{ uuid: node.creds.uuid, flow: node.creds.flow || 'xtls-rprx-vision' }],
+        // 实测:sing-box 1.12/1.13 的 flow=xtls-rprx-vision 与 reality 不兼容(vision 不认 reality 连接包装器),故不带 flow
+        users: [{ uuid: node.creds.uuid }],
         tls: {
           enabled: true,
           server_name: node.sni,

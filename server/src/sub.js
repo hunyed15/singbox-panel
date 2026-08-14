@@ -55,8 +55,7 @@ export function buildShareLink(view) {
     case 'vless':
       return (
         `vless://${c.uuid}@${host}:${port}?encryption=none&security=reality&sni=${sni}` +
-        `&fp=chrome&pbk=${view.realityPublicKey}&sid=${view.shortId}&type=tcp` +
-        `&flow=${c.flow || 'xtls-rprx-vision'}#${enc}`
+        `&fp=chrome&pbk=${view.realityPublicKey}&sid=${view.shortId}&type=tcp#${enc}`
       );
     case 'vmess': {
       const vmess = {
@@ -115,7 +114,7 @@ function buildClientOutbound(view) {
         server: host,
         server_port: port,
         uuid: c.uuid,
-        flow: c.flow || 'xtls-rprx-vision',
+        // 不带 flow:实测 vision+reality 在此版本线不兼容
         tls: {
           enabled: true,
           server_name: sni,

@@ -33,8 +33,7 @@ test('vless-reality: users + reality borrow', () => {
   assert.equal(ib.listen, '::');
   assert.equal(ib.listen_port, 31001);
   assert.equal(ib.tag, 'relay-in-31001');
-  assert.equal(ib.users[0].uuid, 'u1');
-  assert.equal(ib.users[0].flow, 'xtls-rprx-vision');
+  assert.deepEqual(ib.users, [{ uuid: 'u1' }]); // 不带 flow(reality+vision 不兼容)
   assert.equal(ib.tls.enabled, true);
   assert.equal(ib.tls.server_name, 'www.apple.com');
   assert.equal(ib.tls.reality.enabled, true);
