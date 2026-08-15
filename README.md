@@ -14,6 +14,16 @@
 - **单管理员 + JWT**,支持在线修改账号/密码
 - **配置下发含回滚**:`sing-box check` 校验 → 原子替换 → reload,失败自动恢复
 
+## 界面预览
+
+| 登录 | 服务器管理 |
+|---|---|
+| ![登录](images/login.png) | ![服务器](images/servers.png) |
+
+| 节点管理 | 订阅 |
+|---|---|
+| ![节点](images/nodes.png) | ![订阅](images/subscribe.png) |
+
 ## 协议支持(实测可用性)
 
 | 协议 | 可用 | 说明 |
