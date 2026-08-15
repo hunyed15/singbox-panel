@@ -15,9 +15,15 @@ export function buildConn(serverRow, decrypt, appSecret) {
   return { ...base, privateKey: secret };
 }
 
+/** 构造执行命令:conn.sudo 时整条包进 root shell(sudo -n sh -c),变量赋值/&& 链/单引号都能正确提权 */
+export function buildExecCmd(conn, cmd) {
+  if (!conn.sudo) return cmd;
+  return `sudo -n -- sh -c '${cmd.replace(/'/g, `'\\''`)}'`;
+}
+
 /** 远程执行命令;exit code 非 0 或超时 → reject。conn.sudo 时命令经 sudo -n 执行。 */
 export function exec(conn, cmd, timeoutMs = 30000) {
-  const finalCmd = conn.sudo ? `sudo -n -- ${cmd}` : cmd;
+  const finalCmd = buildExecCmd(conn, cmd);
   return new Promise((resolve, reject) => {
     const c = new Client();
     let settled = false;
