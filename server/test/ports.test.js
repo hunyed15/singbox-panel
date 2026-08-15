@@ -1,13 +1,23 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { initDb } from '../src/db.js';
-import { nextFreePort, assertPortFree } from '../src/ports.js';
+import { nextFreePort, assertPortFree, randomFreePort } from '../src/ports.js';
 
 test('nextFreePort: first free from base', () => {
   assert.equal(nextFreePort([], 31001), 31001);
   assert.equal(nextFreePort([31001, 31002], 31001), 31003);
   assert.equal(nextFreePort([], 21000), 21000);
   assert.equal(nextFreePort([21000, 21001, 21002], 21000), 21003);
+});
+
+test('randomFreePort: in range, avoids used and common ports', () => {
+  for (let i = 0; i < 50; i++) {
+    const p = randomFreePort([], 20000, 65000);
+    assert.ok(p >= 20000 && p <= 65000);
+    assert.ok(![80, 443, 8080, 1080, 22].includes(p), `不应命中常见端口:${p}`);
+  }
+  const p2 = randomFreePort([12345], 20000, 20010);
+  assert.notEqual(p2, 12345);
 });
 
 test('assertPortFree: conflict throws 409, exclude self ok', () => {

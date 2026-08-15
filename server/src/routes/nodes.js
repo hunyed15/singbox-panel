@@ -1,6 +1,6 @@
 import express from 'express';
 import { ApiError } from '../errors.js';
-import { assertPortFree, nextFreePort } from '../ports.js';
+import { assertPortFree, randomFreePort } from '../ports.js';
 import { TEMPLATE_META, PROTOCOL_DEFAULTS, genNodeCreds, nodeDefaults } from '../templates.js';
 import { buildShareLink } from '../sub.js';
 import { deployServer } from '../deployServices.js';
@@ -113,14 +113,15 @@ export function makeNodesRouter({ db, crypto, appSecret, ssh, config }) {
       landingId = landing.id;
     }
 
-    // 端口:手动或自动
+    // 端口:手动指定,或完全随机(20000-65000,避开已用与常见端口,防 GFW 按顺序规律封)
     const used = db
       .prepare('SELECT listen_port FROM nodes WHERE server_id = ?')
       .all(serverId)
       .map((r) => r.listen_port);
-    const rs = db.prepare('SELECT port_base FROM relay_settings WHERE server_id = ?').get(serverId);
-    const base = (rs && rs.port_base) || 31000;
-    const port = b.port ? Number(b.port) : nextFreePort(used, base + 1);
+    // 落地机共享 ss 入站端口也计入占用(避免随机撞车)
+    const ls = db.prepare('SELECT in_port FROM landing_settings WHERE server_id = ?').get(serverId);
+    if (ls) used.push(ls.in_port);
+    const port = b.port ? Number(b.port) : randomFreePort(used);
     if (b.port) assertPortFree(db, serverId, port);
 
     const creds = genNodeCreds(meta.protocol);

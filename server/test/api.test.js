@@ -94,13 +94,14 @@ test('full flow: servers -> nodes -> edit -> subscribe -> settings', async () =>
   const n1 = await authPost('/api/nodes', { template: 'vless-reality', name: 'hk1 主力', serverId: relayId, outboundType: 'relay', landingServerId: landingId });
   assert.equal(n1.status, 200);
   assert.equal(n1.body.node.protocol, 'vless');
-  assert.equal(n1.body.node.listen_port, 31001);
+  const n1Port = n1.body.node.listen_port;
+  assert.ok(n1Port >= 20000 && n1Port <= 65000, `端口应随机(20000-65000),实际 ${n1Port}`);
   assert.ok(n1.body.node.sni === 'www.microsoft.com');
   assert.ok(n1.body.node.share_link.startsWith('vless://'));
   assert.equal(n1.body.deploy.ok, true);
   // 中转节点:入口机配置含 vless 入站 + 落地机配置含共享 ss 入站(32000+landingId)
   const cfgs = ssh.written.filter((w) => w.path.includes('config.json')).map((w) => w.content);
-  assert.ok(cfgs.some((c) => c.includes('"listen_port": 31001')), '入口机配置应含 vless 入站');
+  assert.ok(cfgs.some((c) => c.includes(`"listen_port": ${n1Port}`)), '入口机配置应含 vless 入站');
   assert.ok(cfgs.some((c) => c.includes('32002')), '落地机配置应含共享 ss 入站(32002)');
   const n1Id = n1.body.node.id;
 
@@ -121,8 +122,8 @@ test('full flow: servers -> nodes -> edit -> subscribe -> settings', async () =>
   const n3 = await authPost('/api/nodes', { template: 'tunnel', name: 'v6隧道', serverId: relayId, outboundType: 'direct', tunnelAddress: '2001:db8::24', tunnelPort: 8388 });
   assert.equal(n3.body.node.tunnel_address, '2001:db8::24');
 
-  // 端口冲突 → 409
-  const conflict = await authPost('/api/nodes', { template: 'http', name: 'x', serverId: relayId, outboundType: 'direct', port: 31001 });
+  // 端口冲突 → 409(用已存在节点的真实端口)
+  const conflict = await authPost('/api/nodes', { template: 'http', name: 'x', serverId: relayId, outboundType: 'direct', port: n1Port });
   assert.equal(conflict.status, 409);
 
   // 编辑:改协议 → 凭据/分享链接变化
