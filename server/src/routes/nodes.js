@@ -133,7 +133,7 @@ export function makeNodesRouter({ db, crypto, appSecret, ssh, config }) {
         creds.password = String(b.authPassword);
       }
     }
-    const { sni, wsPath } = nodeDefaults(meta.protocol, server.host, b.sni);
+    const { sni, wsPath } = nodeDefaults(meta.protocol, server.client_host || server.host, b.sni); // sni 用对外域名,与自签证书 SAN 一致(v2rayN 友好)
 
     let tunnelAddress = '';
     let tunnelPort = null;
@@ -191,7 +191,7 @@ export function makeNodesRouter({ db, crypto, appSecret, ssh, config }) {
       const defs = PROTOCOL_DEFAULTS[protocol];
       tlsMode = defs.tlsMode;
       transport = defs.transport;
-      const defaults = nodeDefaults(protocol, server.host, b.sni);
+      const defaults = nodeDefaults(protocol, server.client_host || server.host, b.sni);
       sni = defaults.sni;
       wsPath = defaults.wsPath;
     } else if (b.sni !== undefined && (protocol === 'vless' || protocol === 'shadowtls')) {
