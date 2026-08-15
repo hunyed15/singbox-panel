@@ -31,6 +31,11 @@ async function request<T>(
     body: init.body !== undefined ? JSON.stringify(init.body) : undefined,
   });
   if (res.status === 401) {
+    const body = (await res.json().catch(() => ({}))) as { error?: string };
+    if (body.error !== 'unauthorized') {
+      // 业务性 401(如登录凭据错误):按普通错误抛出,不视为会话过期
+      throw new ApiError(401, body.error ?? '请求未授权');
+    }
     clearToken();
     window.location.assign('/login');
     throw new ApiError(401, '登录已过期,请重新登录');

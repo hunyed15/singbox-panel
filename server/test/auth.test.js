@@ -62,12 +62,13 @@ test('auth router: login ok / bad creds 401 / me / account change', async () => 
   assert.equal(me.status, 200);
   assert.deepEqual(me.body, { username: 'admin' });
 
-  // 旧密码错误 → 401
+  // 旧密码错误 → 400(输入问题,非会话过期)
   const badPw = await request(app)
     .put('/api/auth/account')
     .set('Authorization', `Bearer ${token}`)
     .send({ oldPassword: 'wrong' });
-  assert.equal(badPw.status, 401);
+  assert.equal(badPw.status, 400);
+  assert.equal(badPw.body.error, '当前密码错误');
 
   // 改密码
   const chPw = await request(app)

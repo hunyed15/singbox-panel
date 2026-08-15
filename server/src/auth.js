@@ -35,7 +35,7 @@ export function makeAuthRouter(db, jwtSecret) {
     const { username, password } = req.body || {};
     const row = db.prepare('SELECT * FROM users WHERE username = ?').get(username || '');
     if (!row || !(await verifyPassword(password || '', row.password_hash))) {
-      return res.status(401).json({ error: 'invalid credentials' });
+      return res.status(401).json({ error: '用户名或密码错误' });
     }
     const token = signToken(jwtSecret, { username: row.username, sub: row.id });
     return res.json({ token, username: row.username });
@@ -53,7 +53,8 @@ export function makeAuthRouter(db, jwtSecret) {
     const row = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.sub);
     if (!row) return res.status(401).json({ error: 'unauthorized' });
     if (!(await verifyPassword(oldPassword || '', row.password_hash))) {
-      return res.status(401).json({ error: '当前密码错误' });
+      // 旧密码错误是输入问题(400),不是会话失效(401),避免前端误判为登录过期
+      return res.status(400).json({ error: '当前密码错误' });
     }
     let nextUsername = row.username;
     if (username !== undefined && String(username).trim() !== row.username) {
