@@ -176,6 +176,19 @@ test('full flow: servers -> nodes -> edit -> subscribe -> settings', async () =>
   assert.equal(del2.status, 200);
 });
 
+test('landing machine with direct vless node: lazy reality keys generated', async () => {
+  const { app, db } = await makeApp();
+  const token = await login(app);
+  const authPost = (p, body) => request(app).post(p).set('Authorization', `Bearer ${token}`).send(body);
+  const r = await authPost('/api/servers', { name: 'land', role: 'landing', control: 'ssh', host: '9.9.9.9', sshAuthSecret: 'K' });
+  const landId = r.body.id;
+  // 落地机直连 vless-reality
+  const n = await authPost('/api/nodes', { template: 'vless-reality', name: 'land-vless', serverId: landId, outboundType: 'direct', sni: 'www.samsung.com' });
+  assert.equal(n.status, 200);
+  assert.equal(n.body.deploy.ok, true, `deploy 应成功: ${n.body.deploy?.error}`);
+  assert.equal(db.prepare('SELECT COUNT(*) c FROM relay_settings WHERE server_id=?').get(landId).c, 1, '应懒生成 Reality 密钥');
+});
+
 test('snis CRUD + settings slug + 401 guard', async () => {
   const { app, db } = await makeApp();
   const token = await login(app);

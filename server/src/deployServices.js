@@ -30,6 +30,21 @@ export function collectMachineData(db, crypto, appSecret, machineId) {
     }
   }
 
+  // 落地机等也可能直连 vless-reality 节点 → 懒生成 Reality 密钥并持久化(此前只有 relay 机有)
+  if (!relaySettings) {
+    const hasReality = db
+      .prepare("SELECT COUNT(*) c FROM nodes WHERE server_id = ? AND protocol = 'vless' AND enabled = 1")
+      .get(machineId).c;
+    if (hasReality > 0) {
+      const { publicKey, privateKey } = crypto.genRealityKeypair();
+      const shortId = crypto.genShortId();
+      db.prepare(
+        'INSERT OR REPLACE INTO relay_settings (server_id, reality_public_key, reality_private_key, short_id, port_base) VALUES (?,?,?,?,31000)',
+      ).run(machineId, publicKey, crypto.encrypt(appSecret, privateKey), shortId);
+      relaySettings = { realityPrivateKey: privateKey, shortId };
+    }
+  }
+
   const nodes = db
     .prepare('SELECT * FROM nodes WHERE server_id = ?')
     .all(machineId)
