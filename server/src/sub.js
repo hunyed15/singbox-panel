@@ -20,7 +20,7 @@ const b64url = (s) =>
 export function collectNodes(db, appSecret) {
   const rows = db
     .prepare(
-      `SELECT n.*, s.host, rs.reality_public_key, rs.short_id
+      `SELECT n.*, s.host, s.client_host, rs.reality_public_key, rs.short_id
        FROM nodes n
        JOIN servers s ON s.id = n.server_id
        LEFT JOIN relay_settings rs ON rs.server_id = s.id
@@ -32,7 +32,7 @@ export function collectNodes(db, appSecret) {
     id: r.id,
     name: r.name,
     protocol: r.protocol,
-    host: r.host,
+    host: r.client_host || r.host, // 对外地址优先(域名),否则用 host
     port: r.listen_port,
     sni: r.sni || r.host,
     ws_path: r.ws_path,

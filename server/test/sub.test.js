@@ -87,7 +87,7 @@ test('toSingboxConfig: mixed in 2080 + all client outbounds + selector + direct'
 test('collectNodes: enabled non-tunnel only, decrypted creds + reality keys', () => {
   const db = initDb(':memory:');
   db.prepare(
-    `INSERT INTO servers (name,role,host,ssh_user,ssh_auth_type,ssh_auth_secret) VALUES ('hk1','relay','203.0.113.11','root','key','x')`,
+    `INSERT INTO servers (name,role,host,client_host,ssh_user,ssh_auth_type,ssh_auth_secret) VALUES ('hk1','relay','203.0.113.11','relay.pub.example','root','key','x')`,
   ).run();
   const relayId = db.prepare(`SELECT id FROM servers WHERE name='hk1'`).get().id;
   db.prepare(
@@ -112,6 +112,6 @@ test('collectNodes: enabled non-tunnel only, decrypted creds + reality keys', ()
   assert.equal(v.creds.uuid, 'u1');
   assert.equal(v.realityPublicKey, 'pbk');
   assert.equal(v.shortId, 'abcd');
-  assert.equal(v.host, '203.0.113.11');
+  assert.equal(v.host, 'relay.pub.example'); // 订阅用对外地址 client_host
   assert.equal(v.sni, 'www.apple.com');
 });
