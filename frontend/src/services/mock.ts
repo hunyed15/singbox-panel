@@ -1,5 +1,6 @@
 import { ApiError } from './errors';
 import type {
+  AccountPatch,
   ApiModule,
   ControlResult,
   DeployResult,
@@ -377,6 +378,20 @@ export const login = async (
     throw new ApiError(401, '用户名或密码错误');
   }
   return { token: `mock-token-${username}-${Date.now()}`, username };
+};
+
+let mockUsername = 'admin';
+
+export const getMe = async (): Promise<{ username: string }> => {
+  await delay();
+  return { username: mockUsername };
+};
+
+export const updateAccount = async (payload: AccountPatch): Promise<{ username: string }> => {
+  await delay();
+  if (!payload.oldPassword) throw new ApiError(401, '当前密码错误');
+  if (payload.username && payload.username.trim()) mockUsername = payload.username.trim();
+  return { username: mockUsername };
 };
 
 // ---- 服务器 ----
@@ -759,6 +774,8 @@ export const deleteSni = async (id: number): Promise<{ ok: true }> => {
 
 export const api: ApiModule = {
   login,
+  getMe,
+  updateAccount,
   getServers,
   createServer,
   updateServer,

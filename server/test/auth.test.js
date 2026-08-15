@@ -42,7 +42,7 @@ test('requireAuth rejects missing/bad token with 401', async () => {
   }
 });
 
-test('auth router: login ok / bad creds 401 / me', async () => {
+test('auth router: login ok / bad creds 401 / me / account change', async () => {
   const db = initDb(':memory:');
   ensureAdmin(db, { username: 'admin', passwordHash: await hashPassword('pw123') });
   const app = express();
@@ -56,10 +56,48 @@ test('auth router: login ok / bad creds 401 / me', async () => {
   assert.equal(ok.status, 200);
   assert.ok(ok.body.token);
   assert.equal(ok.body.username, 'admin');
+  const token = ok.body.token;
 
-  const me = await request(app)
-    .get('/api/auth/me')
-    .set('Authorization', `Bearer ${ok.body.token}`);
+  const me = await request(app).get('/api/auth/me').set('Authorization', `Bearer ${token}`);
   assert.equal(me.status, 200);
   assert.deepEqual(me.body, { username: 'admin' });
+
+  // 旧密码错误 → 401
+  const badPw = await request(app)
+    .put('/api/auth/account')
+    .set('Authorization', `Bearer ${token}`)
+    .send({ oldPassword: 'wrong' });
+  assert.equal(badPw.status, 401);
+
+  // 改密码
+  const chPw = await request(app)
+    .put('/api/auth/account')
+    .set('Authorization', `Bearer ${token}`)
+    .send({ oldPassword: 'pw123', newPassword: 'pw456789' });
+  assert.equal(chPw.status, 200);
+  // 旧密码失效
+  assert.equal((await request(app).post('/api/auth/login').send({ username: 'admin', password: 'pw123' })).status, 401);
+  // 新密码可登录
+  const re = await request(app).post('/api/auth/login').send({ username: 'admin', password: 'pw456789' });
+  assert.equal(re.status, 200);
+
+  // 改用户名
+  const chU = await request(app)
+    .put('/api/auth/account')
+    .set('Authorization', `Bearer ${re.body.token}`)
+    .send({ oldPassword: 'pw456789', username: 'boss' });
+  assert.equal(chU.status, 200);
+  assert.equal(chU.body.username, 'boss');
+  // 新用户名登录 + /me 返回新名
+  const re2 = await request(app).post('/api/auth/login').send({ username: 'boss', password: 'pw456789' });
+  assert.equal(re2.status, 200);
+  const me2 = await request(app).get('/api/auth/me').set('Authorization', `Bearer ${re2.body.token}`);
+  assert.deepEqual(me2.body, { username: 'boss' });
+
+  // 新密码至少 6 位
+  const short = await request(app)
+    .put('/api/auth/account')
+    .set('Authorization', `Bearer ${re2.body.token}`)
+    .send({ oldPassword: 'pw456789', newPassword: '123' });
+  assert.equal(short.status, 400);
 });

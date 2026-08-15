@@ -54,7 +54,13 @@ SingBox 面板是一个**个人自用的 sing-box 节点管理面板**:在一台
 | 决策项 | 结论 |
 |---|---|
 | 节点控制方式 | **V1 仅 SSH**:面板经 SSH 直连各机,推送配置并 reload,执行 安装/重启/卸载(机器端零组件,代码量最小);**Agent(脚本注册)留作后续扩展**——供面板不可达(如 NAT)的机器使用,前端保留控制方式字段,后端 V1 不实现 |
-| 技术栈 | 后端 Node.js(Express + ssh2 + better-sqlite3);**前端 React + TypeScript + Vite + antd 6**(替代原定 Vue3+Element Plus) |
+| 技术栈 | 后端 Node.js ≥ 24(Express + ssh2 + **内置 node:sqlite,零原生依赖**);**前端 React + TypeScript + Vite + antd 6** |
+| 节点端口 | **完全随机(20000-65000)**,自动避开已用/常见端口/落地机 ss 入站端口;支持手动指定 |
+| 对外地址 | 每台机可设 **client_host(域名/对外 IP)**:分享链接、订阅、中转出站、证书 SAN 全用它;SSH 目标与对外地址解耦(面板本机=127.0.0.1 但对外=公网域名) |
+| SSH 提权 | 每台机可开 **需要 sudo**:命令经 `sudo -n sh -c` 执行(甲骨文 opc/ubuntu 等非 root 用户) |
+| socks/http 认证 | **可选用户名密码**(留空=开放代理,UI 警告易被扫描滥用;凭据可回显编辑) |
+| vless flow | **不带 flow**(实测 sing-box 1.12/1.13 的 vision+reality 不兼容) |
+| 管理员账号 | **在线修改用户名/密码**(需验证旧密码) |
 | 入口协议(客户端→节点) | **模板制 11 种**:VLESS+Reality / VMess+WS+TLS / Trojan+TLS / Shadowsocks-2022 / Hysteria / SOCKS / HTTP / **隧道(端口转发,sing-box direct 入站,支持 IPv4/IPv6/域名目标)** / **TUIC**(QUIC,自签证书)/ **ShadowTLS**(TLS 伪装借站,复用域名库,零证书)/ **Naive**(HTTP/2+TLS,自签,抗封锁价值有限,文档提示)。参照 3x-ui、qist/xray-ui 的入站体验但傻瓜式;客户端代理节点协议已覆盖主流 |
 | 中转链路协议(入口→落地) | shadowsocks-2022(不过 GFW,简单即可) |
 | 节点模型 | 每条节点 = 入站(协议/端口/凭据/TLS/传输)+ 出口(直连 direct / 中转 relay→落地机);「链路」概念泛化为节点,直连与中转统一 |
@@ -119,30 +125,28 @@ SingBox 面板是一个**个人自用的 sing-box 节点管理面板**:在一台
 3. 整机 config 原子替换 + reload(而非频繁重启);同机多节点合并进一份 config 一次下发(拉直原则)。
 4. Reality 凭据按机器共享:一台机器所有 VLESS+Reality 节点共用一套私钥/short_id(借站 SNI 各自可选),端口不同即可。
 5. 直连节点 = 出口 direct,落地机直接暴露客户端协议入站,不走 ss-2022。
-6. 自签证书:面板为 VMess/Trojan TLS 生成自签证书并写入配置,客户端「允许自签」即可连接。
-7. 端口:创建时自动分配(同机唯一),允许手动覆盖并后端校验冲突。
+6. 自签证书:面板为 VMess/Trojan/TUIC/Hysteria2 TLS 生成自签证书并写入配置,客户端「允许自签」即可连接。
+7. 端口:创建时**完全随机分配**(20000-65000,避开已用/常见端口/落地机 ss 入站),允许手动覆盖并后端校验冲突。
 8. 下发失败:自动回滚上一份配置(bak)+ reload,页面明确提示「已回滚」,不掩盖失败。
+9. 落地机等也支持直连 vless-reality 节点(懒生成 Reality 密钥并持久化,不再仅限中转机)。
 
 ## 8. 数据模型(SQLite)
 
 ```
 servers           # 机器
-  id, name, role(relay|landing), control(ssh|agent), host, ssh_port, ssh_user,
-  ssh_auth_type(key|password), ssh_auth_secret(加密存储), region,
-  ping_status(online|offline|inactive|unknown), singbox_version, last_seen
-  # agent 模式:agent_token, agent_version, last_heartbeat
+  id, name, role(relay|landing), control(ssh|agent), host, client_host(对外地址/域名),
+  ssh_port, ssh_user, ssh_auth_type(key|password), ssh_auth_secret(加密存储), ssh_sudo,
+  region, ping_status(online|offline|inactive|unknown), singbox_version, last_seen
 
 nodes             # 节点 = 入站 + 出口(替代原 links)
-  id, name, server_id(入口监听机), protocol(vless|vmess|trojan|shadowsocks|hysteria|socks|http|tunnel),
-  listen_port, enabled, uuid/password/method(加密存储), tls_mode(none|reality|tls), sni,
-  transport(raw|ws), ws_path, outbound_type(direct|relay), landing_server_id,
+  id, name, server_id(入口监听机), protocol(11 种), listen_port(随机), enabled,
+  creds_enc(JSON 加密: uuid/password/method/username), tls_mode(none|reality|tls|shadowtls),
+  sni, transport(raw|ws), ws_path, outbound_type(direct|relay), landing_server_id,
   tunnel_address, tunnel_port, note, created_at
 
-sni_library       # Reality 借站域名库
-  id, domain, note, builtin
-
+sni_library       # Reality 借站域名库(id, domain, note 含 ✓可用/⚠️不兼容标注, builtin)
 settings          # 面板配置(订阅 slug 等)
-users             # 单管理员(bcrypt)
+users             # 单管理员(bcrypt;支持在线改用户名/密码)
 ```
 
 凭据存储:节点凭据、`ssh_auth_secret` 用 **AES-256-GCM** 加密入库,主密钥来自 `APP_SECRET`。
@@ -150,26 +154,28 @@ users             # 单管理员(bcrypt)
 ## 9. 功能范围
 
 ### 9.1 服务器管理
-- CRUD,控制方式 **SSH 为主**(配置 host/端口/用户/私钥或密码);Agent 留作后续扩展(前端保留字段,后端 V1 不实现)。
-- 面板操作:安装 / 重启 / 卸载 sing-box、SSH 连通性测试、配置下发(均经 SSH exec,失败自动回滚)。
-- 状态列:**被动检查**——打开面板/点刷新时按需 SSH 检查(sing-box 版本 + 运行状态),检查中显示「检查中」,检查完缓存;无常驻轮询。
+- CRUD,控制方式 **SSH 为主**(配置 host/端口/用户/私钥或密码/**对外地址 client_host**/**需要 sudo**);Agent 留作后续扩展。
+- 面板操作:安装 / 重启 / 卸载 sing-box、SSH 连通性测试、配置下发(失败自动回滚);甲骨文等非 root 用户机器可开「需要 sudo」提权。
+- 状态列:**被动检查**——打开面板/点刷新时按需 SSH 检查(版本 + 运行状态),无常驻轮询。
 
 ### 9.2 节点管理(模板制)
-- 11 个模板(见 §5),创建 = 选模板 + 名称 + 入口机 + 出口(直连/中转)+ (Reality/ShadowTLS 选借站 SNI / 隧道填转发目标);端口/凭据/密钥/自签证书全自动(端口展示可改)。
-- 列表:协议徽标、入口机、端口、出口(隧道显示 目标:端口)、在线(派生)、启停、分享链接复制、删除。
-- **编辑(V1)**:名称/备注/启停/出口/SNI/端口/协议(改协议 = 凭据重新生成并提示「客户端需更新」)。
-- 启停/编辑/删除触发配置下发,结果必须可见(成功/失败不掩盖,失败自动回滚)。
-- **隧道节点不参与订阅**(非客户端代理节点,仅端口转发)。
+- 11 个模板,创建 = 选模板 + 名称 + 入口机 + 出口(直连/中转)+ (Reality/ShadowTLS 选借站 SNI / 隧道填转发目标);端口(随机)/凭据/密钥/自签证书全自动。
+- **socks/http 可选用户名密码认证**(留空=开放代理,UI 警告;凭据可回显编辑)。
+- 列表:协议徽标、入口机、端口、出口、在线(派生)、启停、分享链接复制、删除。
+- **编辑**:名称/备注/启停/出口/SNI/端口/协议(socks/http 认证可改)。
+- 启停/编辑/删除触发配置下发(入口机 + 引用落地机一并下发),失败自动回滚。
+- **隧道节点不参与订阅**。
 
 ### 9.3 Reality 域名库
 - 内置大厂域名 + 用户增删改;新建 VLESS+Reality 节点时下拉选择。
 
 ### 9.4 订阅
 - 单条链接 `/sub/<slug>`;UA 自动判定 base64 / sing-box JSON,支持 `?format=` 强制。
-- 内容 = 所有启用节点;按协议输出分享链接(vless/vmess/trojan/ss/hysteria2),SOCKS/HTTP 仅进 sing-box JSON。
+- 内容 = 所有启用节点(对外地址 client_host);按协议输出分享链接(vless/vmess/trojan/ss/hysteria2/tuic),SOCKS/HTTP/ShadowTLS/Naive 仅进 sing-box JSON。
 
 ### 9.5 鉴权
 - 单管理员,启动时初始化(env 或首启);密码 bcrypt;JWT;除 `/sub/<slug>` 与 `/api/health` 外全部需登录。
+- **在线修改管理员用户名/密码**(需验证旧密码)。
 
 ### 9.6 不做(明确排除)
 - 多用户 / 计费 / 流量统计 / 到期;系统资源监控;多级串联;客户端侧模板定制;节点自动测速。
@@ -181,14 +187,18 @@ users             # 单管理员(bcrypt)
 
 ## 11. 风险与开放项
 
-1. **agent(已降级为后续扩展)**:V1 不做;若未来有面板不可达的 NAT 机器,再设计 注册/心跳/任务 协议与 agent 形态(纯 shell vs 单文件二进制)。
-2. **Reload 行为**:sing-box `systemctl reload` 对端口/config 变更的支持需实测。
-3. **Reality 借站**:个别大站可能拒绝握手;域名库自选应对。
-4. **自签证书**:VMess/Trojan 客户端需允许自签,订阅/分享链接文案需引导(参考项目均不自动生成,我们更傻瓜)。
-5. **ss-2022 兼容性**:个别客户端不支持则降级 `aes-128-gcm`。
-6. **面板与落地同机**:V1 统一走 SSH(到本机)。
+1. **agent(已降级为后续扩展)**:V1 不做;若未来有面板不可达的 NAT 机器,再设计 注册/心跳/任务 协议。
+2. **Reload 行为**:sing-box `systemctl reload` 依赖 unit 的 `ExecReload=kill -HUP`(实测支持热重载);旧机器无 ExecReload 时自动回退 restart。
+3. **Reality 借站域名必须实测**:✓可用(samsung/oracle/nvidia/adobe/paypal/netflix/tesla/cisco/dl.google.com/bing/cloudflare)/ ⚠️不兼容(microsoft/apple/yahoo/facebook/instagram/tiktok/discord);借站不影响自己访问该站。
+4. **自签证书**:VMess/Trojan/TUIC/Hysteria2 客户端需允许自签(insecure);**Naive 客户端强制校验证书,自签不可用,需真证书**。
+5. **协议可用性实测**:vless/vmess/trojan/ss/hysteria2/tuic/socks/http/隧道 9 种可用;**ShadowTLS 不适合独立节点模型**(传输包装语义);xray 内核客户端(v2rayN)不支持 tuic/hysteria2,需 sing-box 内核客户端。
+6. **MTU**:Oracle Cloud 等默认 9000,公网路径必须 1500,否则中转高延迟/断流(重传风暴);面板部署踩坑已记录。
+7. **ss-2022 兼容性**:个别客户端不支持则降级 `aes-128-gcm`。
+8. **面板与落地同机**:统一走 SSH(到本机或 127.0.0.1 + client_host 对外域名)。
 
 ## 12. 交付物
+- Node.js 后端(含测试)+ React/antd 前端 + SQLite 迁移;前端契约 `docs/ia.md`、后端设计 `docs/backend-design.md`、部署指南 `docs/部署.md`。
+- 部署产物:systemd unit、nginx 反代示例、一键安装脚本 `deploy/install-panel.sh`、GitHub README。
 
 - Node.js 后端(含测试)+ React/antd 前端 + SQLite 迁移;前端契约见 `docs/ia.md`、组件映射见 `docs/mapping.md`。
 - 部署文档(含 systemd、nginx、首次建节点步骤、客户端订阅/自签证书指引)。

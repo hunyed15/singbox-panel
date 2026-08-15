@@ -1,7 +1,9 @@
 import { Button, Flex, Layout, Menu, Typography, theme } from 'antd';
-import { ApiOutlined, LinkOutlined, LogoutOutlined, SyncOutlined } from '@ant-design/icons';
+import { ApiOutlined, LinkOutlined, LogoutOutlined, SyncOutlined, UserOutlined } from '@ant-design/icons';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { useState } from 'react';
 import { clearToken } from '../services/auth';
+import { AccountModal } from '../components/AccountModal';
 
 const { Sider, Header, Content } = Layout;
 
@@ -17,6 +19,8 @@ export function MainLayout() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const { token } = theme.useToken();
+  const [accountOpen, setAccountOpen] = useState(false);
+  const [username, setUsername] = useState('');
   const selectedKey = NAV_KEYS.find((key) => pathname.startsWith(key)) ?? '/servers';
 
   const handleLogout = () => {
@@ -47,9 +51,14 @@ export function MainLayout() {
             display: 'flex',
             justifyContent: 'flex-end',
             alignItems: 'center',
+            gap: 8,
             paddingInline: 24,
           }}
         >
+          {username && <Typography.Text type="secondary">{username}</Typography.Text>}
+          <Button type="text" icon={<UserOutlined />} onClick={() => setAccountOpen(true)}>
+            修改账号
+          </Button>
           <Button type="text" icon={<LogoutOutlined />} onClick={handleLogout}>
             退出登录
           </Button>
@@ -58,6 +67,11 @@ export function MainLayout() {
           <Outlet />
         </Content>
       </Layout>
+      <AccountModal
+        open={accountOpen}
+        onClose={() => setAccountOpen(false)}
+        onChanged={(name) => setUsername(name)}
+      />
     </Layout>
   );
 }

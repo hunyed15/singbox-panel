@@ -1,6 +1,7 @@
 import { ApiError } from './errors';
 import { clearToken, getToken, setToken } from './auth';
 import type {
+  AccountPatch,
   ApiModule,
   ControlResult,
   DeployResult,
@@ -54,6 +55,11 @@ export const login = async (
   setToken(data.token);
   return data;
 };
+
+export const getMe = (): Promise<{ username: string }> => request('/api/auth/me');
+
+export const updateAccount = (payload: AccountPatch): Promise<{ username: string }> =>
+  request('/api/auth/account', { method: 'PUT', body: payload });
 
 // ---- 服务器 ----
 export const getServers = (): Promise<Server[]> => request<Server[]>('/api/servers');
@@ -135,6 +141,8 @@ export const deleteSni = (id: number): Promise<{ ok: true }> =>
 
 export const api: ApiModule = {
   login,
+  getMe,
+  updateAccount,
   getServers,
   createServer,
   updateServer,

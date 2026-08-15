@@ -169,6 +169,12 @@ export interface LoginResult {
   username: string;
 }
 
+export interface AccountPatch {
+  username?: string;
+  oldPassword: string;
+  newPassword?: string;
+}
+
 export interface TestResult {
   ok: boolean;
   message?: string;
@@ -180,6 +186,8 @@ export interface InstallScriptResult {
 
 export interface ApiModule {
   login(username: string, password: string): Promise<LoginResult>;
+  getMe(): Promise<{ username: string }>;
+  updateAccount(payload: AccountPatch): Promise<{ username: string }>;
   getServers(): Promise<Server[]>;
   createServer(payload: ServerInput): Promise<Server>;
   updateServer(id: number, payload: Partial<ServerInput>): Promise<Server>;
