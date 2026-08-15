@@ -16,6 +16,7 @@ interface FormValues {
   control: ControlMode;
   region: string;
   host: string;
+  clientHost: string;
   sshPort: number;
   sshUser: string;
   sshAuthType: SshAuthType;
@@ -60,6 +61,7 @@ export function ServerFormModal({ open, record, onClose, onSaved }: ServerFormMo
         control: record.control,
         region: record.region,
         host: record.host,
+        clientHost: record.client_host ?? '',
         sshPort: record.ssh_port,
         sshUser: record.ssh_user,
         sshAuthType: record.ssh_auth_type,
@@ -73,6 +75,7 @@ export function ServerFormModal({ open, record, onClose, onSaved }: ServerFormMo
         control: 'agent',
         region: '',
         host: '',
+        clientHost: '',
         sshPort: 22,
         sshUser: 'root',
         sshAuthType: 'key',
@@ -99,6 +102,7 @@ export function ServerFormModal({ open, record, onClose, onSaved }: ServerFormMo
       };
       if (values.control === 'ssh') {
         base.host = values.host;
+        base.clientHost = values.clientHost;
         base.sshPort = Number(values.sshPort);
         base.sshUser = values.sshUser;
         base.sshAuthType = values.sshAuthType;
@@ -177,6 +181,13 @@ export function ServerFormModal({ open, record, onClose, onSaved }: ServerFormMo
               rules={[{ required: true, message: '请输入主机地址' }]}
             >
               <Input placeholder="1.2.3.4" />
+            </Form.Item>
+            <Form.Item
+              name="clientHost"
+              label="对外地址(可选)"
+              tooltip="客户端/其他机器连接用的地址;SSH 目标与对外地址不同时填(如面板本机=127.0.0.1 但对外是公网 IP);留空=用主机地址"
+            >
+              <Input placeholder="留空则用主机地址" />
             </Form.Item>
             <Flex gap={16}>
               <Form.Item

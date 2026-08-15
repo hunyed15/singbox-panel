@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS servers (
   role TEXT NOT NULL CHECK(role IN ('relay','landing')),
   control TEXT NOT NULL DEFAULT 'ssh' CHECK(control IN ('ssh','agent')),
   host TEXT NOT NULL DEFAULT '',
+  client_host TEXT NOT NULL DEFAULT '',  -- 对外地址(客户端/机器间连接用;留空=用 host,SSH 目标=host)
   ssh_port INTEGER NOT NULL DEFAULT 22,
   ssh_user TEXT NOT NULL DEFAULT 'root',
   ssh_auth_type TEXT NOT NULL DEFAULT 'key' CHECK(ssh_auth_type IN ('key','password')),
@@ -87,6 +88,9 @@ function migrate(db) {
   const cols = db.prepare('PRAGMA table_info(servers)').all().map((c) => c.name);
   if (!cols.includes('ssh_sudo')) {
     db.exec('ALTER TABLE servers ADD COLUMN ssh_sudo INTEGER NOT NULL DEFAULT 0');
+  }
+  if (!cols.includes('client_host')) {
+    db.exec("ALTER TABLE servers ADD COLUMN client_host TEXT NOT NULL DEFAULT ''");
   }
 }
 

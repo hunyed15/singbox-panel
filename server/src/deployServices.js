@@ -54,10 +54,10 @@ export function collectMachineData(db, crypto, appSecret, machineId) {
   const landingIds = [...new Set(nodes.map((n) => n.landing_server_id).filter(Boolean))];
   for (const id of landingIds) {
     const ls = db.prepare('SELECT * FROM landing_settings WHERE server_id = ?').get(id);
-    const srv = db.prepare('SELECT host FROM servers WHERE id = ?').get(id);
+    const srv = db.prepare('SELECT host, client_host FROM servers WHERE id = ?').get(id);
     if (ls && srv) {
       landings[id] = {
-        host: srv.host,
+        host: srv.client_host || srv.host,
         in_port: ls.in_port,
         method: ls.method,
         password: crypto.decrypt(appSecret, ls.password),
@@ -68,7 +68,7 @@ export function collectMachineData(db, crypto, appSecret, machineId) {
   const machine = {
     id: row.id,
     name: row.name,
-    host: row.host,
+    host: row.client_host || row.host,
     role: row.role,
     certPath: `/etc/sing-box/tls/${row.name}.crt`,
     keyPath: `/etc/sing-box/tls/${row.name}.key`,

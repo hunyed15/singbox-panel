@@ -60,14 +60,14 @@ function nodeItem(row, serverName, landingName, view) {
 
 /** 构建分享链接所需的 view(含 Reality 公钥) */
 function toView(db, crypto, appSecret, row) {
-  const server = db.prepare('SELECT host FROM servers WHERE id = ?').get(row.server_id);
+  const server = db.prepare('SELECT host, client_host FROM servers WHERE id = ?').get(row.server_id);
   if (!server) return null;
   const rs = db.prepare('SELECT reality_public_key, short_id FROM relay_settings WHERE server_id = ?').get(row.server_id);
   return {
     id: row.id,
     name: row.name,
     protocol: row.protocol,
-    host: server.host,
+    host: server.client_host || server.host,
     port: row.listen_port,
     sni: row.sni || server.host,
     ws_path: row.ws_path,

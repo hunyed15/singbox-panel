@@ -84,14 +84,15 @@ export function makeServersRouter({ db, crypto, appSecret, ssh, config }) {
 
     const info = db
       .prepare(
-        `INSERT INTO servers (name, role, control, host, ssh_port, ssh_user, ssh_auth_type, ssh_auth_secret, ssh_sudo, region)
-         VALUES (?,?,?,?,?,?,?,?,?,?)`,
+        `INSERT INTO servers (name, role, control, host, client_host, ssh_port, ssh_user, ssh_auth_type, ssh_auth_secret, ssh_sudo, region)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
       )
       .run(
         name,
         role,
         control,
         b.host || '',
+        b.clientHost || '',
         b.sshPort || 22,
         b.sshUser || 'root',
         b.sshAuthType || 'key',
@@ -130,13 +131,14 @@ export function makeServersRouter({ db, crypto, appSecret, ssh, config }) {
       );
     }
     db.prepare(
-      `UPDATE servers SET name=?, role=?, control=?, host=?, ssh_port=?, ssh_user=?, ssh_auth_type=?, ssh_sudo=?, region=?
+      `UPDATE servers SET name=?, role=?, control=?, host=?, client_host=?, ssh_port=?, ssh_user=?, ssh_auth_type=?, ssh_sudo=?, region=?
        WHERE id=?`,
     ).run(
       b.name ?? row.name,
       nextRole,
       control,
       b.host ?? row.host,
+      b.clientHost !== undefined ? b.clientHost : row.client_host,
       b.sshPort ?? row.ssh_port,
       b.sshUser ?? row.ssh_user,
       b.sshAuthType ?? row.ssh_auth_type,

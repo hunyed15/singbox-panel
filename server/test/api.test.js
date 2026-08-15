@@ -80,10 +80,11 @@ test('full flow: servers -> nodes -> edit -> subscribe -> settings', async () =>
   const authDel = (p) => request(app).delete(p).set('Authorization', `Bearer ${token}`);
 
   // 建中转机 + 落地机(自动生成机器级凭据)
-  const r1 = await authPost('/api/servers', { name: 'hk1', role: 'relay', control: 'ssh', region: 'HK', host: '203.0.113.11', sshAuthSecret: 'PRIV', sshSudo: true });
+  const r1 = await authPost('/api/servers', { name: 'hk1', role: 'relay', control: 'ssh', region: 'HK', host: '203.0.113.11', clientHost: 'relay.pub.example', sshAuthSecret: 'PRIV', sshSudo: true });
   assert.equal(r1.status, 200);
   const relayId = r1.body.id;
   assert.equal(r1.body.ssh_sudo, 1);
+  assert.equal(r1.body.client_host, 'relay.pub.example');
   assert.equal(db.prepare('SELECT COUNT(*) c FROM relay_settings WHERE server_id=?').get(relayId).c, 1);
 
   const r2 = await authPost('/api/servers', { name: 'kr3', role: 'landing', control: 'ssh', region: 'KR', host: '203.0.113.23', sshAuthSecret: 'PRIV' });
@@ -97,6 +98,7 @@ test('full flow: servers -> nodes -> edit -> subscribe -> settings', async () =>
   const n1Port = n1.body.node.listen_port;
   assert.ok(n1Port >= 20000 && n1Port <= 65000, `端口应随机(20000-65000),实际 ${n1Port}`);
   assert.ok(n1.body.node.sni === 'www.microsoft.com');
+  assert.ok(n1.body.node.share_link.includes('relay.pub.example'), '分享链接应使用对外地址 client_host');
   assert.ok(n1.body.node.share_link.startsWith('vless://'));
   assert.equal(n1.body.deploy.ok, true);
   // 中转节点:入口机配置含 vless 入站 + 落地机配置含共享 ss 入站(32000+landingId)

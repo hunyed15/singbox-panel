@@ -49,6 +49,8 @@ export interface Server {
   role: ServerRole;
   control: ControlMode;
   host: string;
+  /** 对外地址(客户端/机器间连接用;SSH 目标用 host)。留空=同 host */
+  client_host?: string;
   ssh_port: number;
   ssh_user: string;
   ssh_auth_type: SshAuthType;
@@ -69,6 +71,8 @@ export interface ServerInput {
   region: string;
   /** control='ssh' 时必填;agent 模式由机器自行注册,可不填 */
   host?: string;
+  /** 对外地址,留空=用 host(SSH 目标与本机一致时无需填) */
+  clientHost?: string;
   sshPort?: number;
   sshUser?: string;
   sshAuthType?: SshAuthType;
