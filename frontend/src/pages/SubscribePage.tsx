@@ -23,6 +23,7 @@ export function SubscribePage() {
   }, [data]);
 
   const fullUrl = `${window.location.origin}/sub/${slug}`;
+  const xrayFullUrl = `${window.location.origin}/sub/xray/${slug}`;
 
   const handleCopy = async () => {
     try {
@@ -96,6 +97,33 @@ export function SubscribePage() {
       </Card>
 
       <Card>
+        <Typography.Title level={5}>Xray 订阅链接</Typography.Title>
+        <Flex vertical gap={12}>
+          <Typography.Text code copyable>
+            {xrayFullUrl}
+          </Typography.Text>
+          <Flex gap={8}>
+            <Button type="primary" icon={<CopyOutlined />} onClick={async () => {
+              try {
+                await navigator.clipboard.writeText(xrayFullUrl);
+                message.success('已复制 Xray 订阅链接');
+              } catch {
+                message.error('复制失败');
+              }
+            }}>
+              复制链接
+            </Button>
+            <Button icon={<LinkOutlined />} onClick={() => window.open(xrayFullUrl, '_blank', 'noopener')}>
+              打开订阅
+            </Button>
+          </Flex>
+          <Typography.Text type="secondary">
+            Xray 订阅仅输出 base64 格式(vless/vmess/trojan/ss 分享链接),不输出 JSON。
+          </Typography.Text>
+        </Flex>
+      </Card>
+
+      <Card>
         <Typography.Title level={5}>订阅标识(slug)</Typography.Title>
         <Form<SlugFormValues>
           layout="inline"
@@ -133,18 +161,17 @@ export function SubscribePage() {
           description={
             <Flex vertical gap={4}>
               <Typography.Text>
-                base64:v2rayN / Clash 等客户端,默认命中,或追加 ?format=base64 强制。
+                <b>SingBox 订阅</b>(/sub/&lt;slug&gt;): base64(v2rayN/Clash) + sing-box JSON(SFA/SFI),UA 自动判定。
               </Typography.Text>
               <Typography.Text>
-                sing-box JSON:sing-box / SFA / SFI 客户端,UA 命中自动返回,或追加 ?format=singbox
-                强制。
+                <b>Xray 订阅</b>(/sub/xray/&lt;slug&gt;): 仅 base64 格式,含 VLESS/VMess/Trojan/SS 分享链接。
               </Typography.Text>
               <Typography.Text>
                 分享链接按协议:vless / vmess / trojan / ss / hysteria2 均支持直接导入;SOCKS /
                 HTTP 节点请使用 sing-box JSON 订阅导入。
               </Typography.Text>
               <Typography.Text type="secondary">
-                订阅内容 = 当前所有「启用」状态的链路;新建或停用后,客户端重新拉取即生效。
+                订阅内容 = 当前所有「启用」状态的节点;新建或停用后,客户端重新拉取即生效。
               </Typography.Text>
             </Flex>
           }

@@ -3,6 +3,7 @@ import { MainLayout } from '../layouts/MainLayout';
 import { RequireAuth } from '../router/RequireAuth';
 import { LoginPage } from '../pages/LoginPage';
 import { NodesPage } from '../pages/NodesPage';
+import { XrayNodesPage } from '../pages/XrayNodesPage';
 import { ServersPage } from '../pages/ServersPage';
 import { SubscribePage } from '../pages/SubscribePage';
 
@@ -15,6 +16,7 @@ export default function App() {
           <Route index element={<Navigate to="/servers" replace />} />
           <Route path="servers" element={<ServersPage />} />
           <Route path="nodes" element={<NodesPage />} />
+          <Route path="xray-nodes" element={<XrayNodesPage />} />
           <Route path="subscribe" element={<SubscribePage />} />
         </Route>
       </Route>

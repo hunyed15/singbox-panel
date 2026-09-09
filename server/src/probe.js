@@ -15,12 +15,15 @@ export async function checkAllServers(db, ssh, crypto, config, serverRows = null
   const update = db.prepare(
     'UPDATE servers SET ping_status = ?, singbox_version = ?, last_seen = ? WHERE id = ?',
   );
+  const updateXray = db.prepare(
+    'UPDATE servers SET xray_ping_status = ?, xray_version = ?, xray_last_seen = ? WHERE id = ?',
+  );
   const errors = {};
 
   const checkOne = async (row) => {
     try {
       const conn = ssh.buildConn(row, crypto.decrypt, config.appSecret); // 凭据异常/解密失败也计入 offline,不打断整批
-      // version/is-active 容忍非 0 退出:仅真实 SSH 失败才算 offline
+      // Sing-box 检查
       const ver = await ssh.exec(
         conn,
         `${config.singboxBin} version 2>/dev/null | head -1; true`,
@@ -29,10 +32,18 @@ export async function checkAllServers(db, ssh, crypto, config, serverRows = null
       const version = parseVersion(ver.stdout);
       const status = act.stdout.trim() === 'active' ? 'online' : 'inactive';
       update.run(status, version, new Date().toISOString(), row.id);
+
+      // Xray 检查
+      const xrayVer = await ssh.exec(conn, `${config.xrayBin} version 2>/dev/null | head -1; true`);
+      const xrayAct = await ssh.exec(conn, `systemctl is-active ${config.xrayUnit} || echo inactive`);
+      const xversion = parseVersion(xrayVer.stdout);
+      const xstatus = xrayAct.stdout.trim() === 'active' ? 'online' : (xversion ? 'inactive' : 'unknown');
+      updateXray.run(xstatus, xversion, new Date().toISOString(), row.id);
     } catch (err) {
       errors[row.id] = err.message || String(err);
       console.error(`[probe] server #${row.id} (${row.name}) offline:`, errors[row.id]);
       update.run('offline', '', new Date().toISOString(), row.id);
+      updateXray.run('offline', '', new Date().toISOString(), row.id);
     }
   };
 

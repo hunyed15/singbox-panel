@@ -61,6 +61,35 @@ CREATE TABLE IF NOT EXISTS sni_library (
   note TEXT NOT NULL DEFAULT '',
   builtin INTEGER NOT NULL DEFAULT 0
 );
+CREATE TABLE IF NOT EXISTS xray_nodes (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  server_id INTEGER NOT NULL REFERENCES servers(id) ON DELETE CASCADE,
+  protocol TEXT NOT NULL,
+  listen_port INTEGER NOT NULL,
+  enabled INTEGER NOT NULL DEFAULT 1,
+  creds_enc TEXT NOT NULL DEFAULT '',
+  tls_mode TEXT NOT NULL DEFAULT 'reality' CHECK(tls_mode IN ('none','reality','tls')),
+  sni TEXT NOT NULL DEFAULT '',
+  transport TEXT NOT NULL DEFAULT 'raw' CHECK(transport IN ('raw','ws','tcp')),
+  ws_path TEXT NOT NULL DEFAULT '',
+  flow TEXT NOT NULL DEFAULT '',
+  outbound_type TEXT NOT NULL DEFAULT 'direct' CHECK(outbound_type IN ('direct','relay')),
+  landing_server_id INTEGER REFERENCES servers(id),
+  tunnel_address TEXT NOT NULL DEFAULT '',
+  tunnel_port INTEGER,
+  note TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  UNIQUE(server_id, listen_port)
+);
+CREATE TABLE IF NOT EXISTS xray_server_settings (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  server_id INTEGER NOT NULL UNIQUE REFERENCES servers(id) ON DELETE CASCADE,
+  reality_private_key TEXT NOT NULL,
+  reality_public_key TEXT NOT NULL,
+  short_id TEXT NOT NULL,
+  port_base INTEGER NOT NULL DEFAULT 41000
+);
 CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS users (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -91,6 +120,11 @@ function migrate(db) {
   }
   if (!cols.includes('client_host')) {
     db.exec("ALTER TABLE servers ADD COLUMN client_host TEXT NOT NULL DEFAULT ''");
+  }
+  if (!cols.includes('xray_version')) {
+    db.exec("ALTER TABLE servers ADD COLUMN xray_version TEXT NOT NULL DEFAULT ''");
+    db.exec("ALTER TABLE servers ADD COLUMN xray_ping_status TEXT NOT NULL DEFAULT 'unknown' CHECK(xray_ping_status IN ('online','inactive','offline','unknown'))");
+    db.exec("ALTER TABLE servers ADD COLUMN xray_last_seen TEXT");
   }
 }
 

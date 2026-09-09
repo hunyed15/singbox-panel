@@ -9,7 +9,8 @@ const { Sider, Header, Content } = Layout;
 
 const NAV_ITEMS = [
   { key: '/servers', icon: <ApiOutlined />, label: '服务器' },
-  { key: '/nodes', icon: <LinkOutlined />, label: '节点' },
+  { key: '/nodes', icon: <LinkOutlined />, label: 'SingBox 节点' },
+  { key: '/xray-nodes', icon: <ApiOutlined />, label: 'Xray 节点' },
   { key: '/subscribe', icon: <SyncOutlined />, label: '订阅' },
 ];
 const NAV_KEYS = NAV_ITEMS.map((item) => item.key);

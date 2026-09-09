@@ -10,6 +10,8 @@ const TABLES = [
   'settings',
   'sni_library',
   'users',
+  'xray_nodes',
+  'xray_server_settings',
 ];
 
 test('initDb creates all tables', () => {

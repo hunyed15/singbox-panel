@@ -7,9 +7,11 @@ import { initDb, getSetting, setSetting, ensureAdmin } from './db.js';
 import { hashPassword, makeAuthRouter, requireAuth } from './auth.js';
 import { makeServersRouter } from './routes/servers.js';
 import { makeNodesRouter } from './routes/nodes.js';
+import { makeXrayNodesRouter } from './routes/xray_nodes.js';
 import { makeSnisRouter } from './routes/snis.js';
 import { makeSettingsRouter } from './routes/settings.js';
 import { makeSubRouter } from './routes/sub.js';
+import { makeXraySubRouter } from './routes/xray_sub.js';
 import * as crypto from './crypto.js';
 import * as ssh from './ssh.js';
 import { ApiError } from './errors.js';
@@ -44,9 +46,11 @@ export async function createApp({ config }) {
   const auth = requireAuth(config.jwtSecret);
   app.use('/api/servers', auth, makeServersRouter({ db, crypto, appSecret: config.appSecret, ssh, config }));
   app.use('/api/nodes', auth, makeNodesRouter({ db, crypto, appSecret: config.appSecret, ssh, config }));
+  app.use('/api/xray/nodes', auth, makeXrayNodesRouter({ db, crypto, appSecret: config.appSecret, ssh, config }));
   app.use('/api/snis', auth, makeSnisRouter(db));
   app.use('/api/settings', auth, makeSettingsRouter(db, config.appSecret));
   app.use('/sub', makeSubRouter(db, config.appSecret));
+  app.use('/sub/xray', makeXraySubRouter(db, config.appSecret));
 
   app.use('/api', (req, res) => res.status(404).json({ error: 'not found' }));
 

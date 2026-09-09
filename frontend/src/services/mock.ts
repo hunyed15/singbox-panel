@@ -16,6 +16,11 @@ import type {
   Settings,
   SniItem,
   TestResult,
+  XrayNodeCreateInput,
+  XrayNodeItem,
+  XrayNodePatch,
+  XrayNodeProtocol,
+  XrayNodeTemplate,
 } from './types';
 
 /**
@@ -772,6 +777,134 @@ export const deleteSni = async (id: number): Promise<{ ok: true }> => {
   return { ok: true };
 };
 
+// ---- Xray 节点 (Mock) ----
+const XRAY_TEMPLATE_META: Record<XrayNodeTemplate, { protocol: XrayNodeProtocol; tlsMode: XrayNodeItem['tls_mode']; transport: XrayNodeItem['transport'] }> = {
+  'xray-vless-reality': { protocol: 'vless', tlsMode: 'reality', transport: 'raw' },
+  'xray-vmess-ws-tls': { protocol: 'vmess', tlsMode: 'tls', transport: 'ws' },
+  'xray-trojan-tls': { protocol: 'trojan', tlsMode: 'tls', transport: 'raw' },
+  'xray-ss': { protocol: 'shadowsocks', tlsMode: 'none', transport: 'raw' },
+  'xray-socks': { protocol: 'socks', tlsMode: 'none', transport: 'raw' },
+  'xray-http': { protocol: 'http', tlsMode: 'none', transport: 'raw' },
+};
+
+function xrayShareLink(name: string, host: string, port: number, protocol: XrayNodeProtocol, creds: MockCreds): string | null {
+  const enc = encodeURIComponent(name);
+  switch (protocol) {
+    case 'vless':
+      return `vless://${creds.uuid}@${host}:${port}?encryption=none&security=reality&sni=${creds.sni || host}&fp=chrome&type=tcp#${enc}`;
+    case 'vmess':
+      return `vmess://${toBase64Url(JSON.stringify({ v: '2', ps: name, add: host, port, id: creds.uuid, aid: '0', scy: 'auto', net: 'ws', host, path: creds.wsPath || '/', tls: 'tls', sni: creds.sni || host, allowInsecure: '1' }))}`;
+    case 'trojan':
+      return `trojan://${creds.password}@${host}:${port}?security=tls&sni=${creds.sni || host}&allowInsecure=1#${enc}`;
+    case 'shadowsocks':
+      return `ss://${toBase64Url(`${creds.method || 'aes-128-gcm'}:${creds.password}`)}@${host}:${port}#${enc}`;
+    case 'socks':
+    case 'http':
+      return null;
+  }
+}
+
+let xrayNodes: XrayNodeItem[] = [];
+let nextXrayNodeId = 200;
+
+export const getXrayNodes = async (): Promise<XrayNodeItem[]> => {
+  await delay();
+  return xrayNodes;
+};
+
+export const createXrayNode = async (payload: XrayNodeCreateInput): Promise<{ node: XrayNodeItem; deploy: DeployResult | null }> => {
+  await delay();
+  const { template, name, serverId } = payload;
+  if (!name || !serverId) throw new ApiError(400, 'name/serverId 必填');
+  const server = findServer(serverId);
+  const meta = XRAY_TEMPLATE_META[template];
+  if (!meta) throw new ApiError(400, '未知模板');
+  const id = nextXrayNodeId++;
+  const flow = meta.protocol === 'vless' ? (payload.flow || 'xtls-rprx-vision') : '';
+  const creds = makeCreds(meta.protocol, server, meta.protocol === 'vless' ? payload.sni : undefined);
+  credsById.set(id, { ...creds, flow });
+  const port = payload.port ? Number(payload.port) : 41000 + id;
+  if (xrayNodes.some((n) => n.server_id === serverId && n.listen_port === port)) {
+    throw new ApiError(409, `端口 ${port} 已被占用`);
+  }
+  const node: XrayNodeItem = {
+    id,
+    name,
+    server_id: serverId,
+    server_name: server.name,
+    protocol: meta.protocol,
+    listen_port: port,
+    enabled: 1,
+    tls_mode: meta.tlsMode,
+    transport: meta.transport,
+    sni: creds.sni,
+    ws_path: creds.wsPath,
+    flow,
+    share_link: xrayShareLink(name, server.host, port, meta.protocol, creds),
+    note: '',
+    created_at: iso(0),
+  };
+  xrayNodes = [...xrayNodes, node];
+  return { node, deploy: okDeploy() };
+};
+
+export const updateXrayNode = async (id: number, payload: XrayNodePatch): Promise<{ node: XrayNodeItem; deploy: DeployResult | null }> => {
+  await delay();
+  const row = xrayNodes.find((n) => n.id === id);
+  if (!row) throw new ApiError(404, 'Xray 节点不存在');
+  const server = findServer(row.server_id);
+  const next: XrayNodeItem = { ...row };
+  if (payload.name !== undefined) next.name = payload.name;
+  if (payload.note !== undefined) next.note = payload.note;
+  if (payload.enabled !== undefined) next.enabled = payload.enabled ? 1 : 0;
+  if (payload.port !== undefined) next.listen_port = Number(payload.port);
+  if (payload.sni !== undefined) next.sni = payload.sni;
+  if (payload.flow !== undefined) next.flow = payload.flow;
+  if (payload.protocol !== undefined && payload.protocol !== row.protocol) {
+    next.protocol = payload.protocol;
+    // 按目标协议设置 tls_mode/transport
+    const protoDefaults: Record<string, { tlsMode: XrayNodeItem['tls_mode']; transport: XrayNodeItem['transport'] }> = {
+      vless: { tlsMode: 'reality', transport: 'raw' },
+      vmess: { tlsMode: 'tls', transport: 'ws' },
+      trojan: { tlsMode: 'tls', transport: 'raw' },
+      shadowsocks: { tlsMode: 'none', transport: 'raw' },
+      socks: { tlsMode: 'none', transport: 'raw' },
+      http: { tlsMode: 'none', transport: 'raw' },
+    };
+    const d = protoDefaults[payload.protocol] || { tlsMode: 'none', transport: 'raw' };
+    next.tls_mode = d.tlsMode;
+    next.transport = d.transport;
+    next.flow = payload.protocol === 'vless' ? (payload.flow || 'xtls-rprx-vision') : '';
+  }
+  next.share_link = xrayShareLink(next.name, server.host, next.listen_port, next.protocol, {} as MockCreds);
+  xrayNodes = xrayNodes.map((n) => (n.id === id ? next : n));
+  return { node: next, deploy: okDeploy() };
+};
+
+export const deleteXrayNode = async (id: number): Promise<{ ok: true; deploy: DeployResult | null }> => {
+  await delay();
+  const row = xrayNodes.find((n) => n.id === id);
+  if (!row) throw new ApiError(404, 'Xray 节点不存在');
+  xrayNodes = xrayNodes.filter((n) => n.id !== id);
+  credsById.delete(id);
+  return { ok: true, deploy: okDeploy() };
+};
+
+export const installXrayServer = async (_id: number): Promise<ControlResult> => {
+  await delay(1200);
+  return { ok: true, steps: ['下载 xray', '安装二进制', '创建 systemd 单元', '启动 xray 服务'] };
+};
+
+export const restartXrayServer = async (_id: number): Promise<ControlResult> => {
+  await delay(800);
+  return { ok: true, steps: ['重启 xray 服务'] };
+};
+
+export const uninstallXrayServer = async (_id: number): Promise<ControlResult> => {
+  await delay(1200);
+  return { ok: true, steps: ['停止 xray 服务', '删除 xray 二进制与配置'] };
+};
+
 export const api: ApiModule = {
   login,
   getMe,
@@ -796,4 +929,11 @@ export const api: ApiModule = {
   createSni,
   updateSni,
   deleteSni,
+  getXrayNodes,
+  createXrayNode,
+  updateXrayNode,
+  deleteXrayNode,
+  installXrayServer,
+  restartXrayServer,
+  uninstallXrayServer,
 };

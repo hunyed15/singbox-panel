@@ -1,11 +1,12 @@
 import type { BadgeProps } from 'antd';
 import type {
   ControlMode,
-  NodeItem,
   NodeProtocol,
   PingStatus,
   ServerRole,
   TlsMode,
+  XrayNodeProtocol,
+  XrayTlsMode,
 } from '../services/types';
 
 /**
@@ -58,7 +59,25 @@ export const TLS_META: Record<TlsMode, string> = {
   shadowtls: 'ShadowTLS 借站',
 };
 
+export const XRAY_PROTOCOL_META: Record<
+  XrayNodeProtocol,
+  { text: string; tagColor: string }
+> = {
+  vless: { text: 'VLESS', tagColor: 'blue' },
+  vmess: { text: 'VMess', tagColor: 'geekblue' },
+  trojan: { text: 'Trojan', tagColor: 'purple' },
+  shadowsocks: { text: 'SS', tagColor: 'green' },
+  socks: { text: 'SOCKS', tagColor: 'orange' },
+  http: { text: 'HTTP', tagColor: 'gold' },
+};
+
+export const XRAY_TLS_META: Record<XrayTlsMode, string> = {
+  none: '无',
+  reality: 'Reality',
+  tls: 'TLS',
+};
+
 /** 节点「在线」为前端派生:启用 且 入口机探测在线 */
-export function isNodeOnline(node: NodeItem, onlineServerIds: ReadonlySet<number>): boolean {
+export function isNodeOnline(node: { enabled: number; server_id: number }, onlineServerIds: ReadonlySet<number>): boolean {
   return node.enabled === 1 && onlineServerIds.has(node.server_id);
 }

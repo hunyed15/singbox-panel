@@ -37,6 +37,18 @@ export type NodeTemplate =
 export type TlsMode = 'none' | 'reality' | 'tls' | 'shadowtls';
 export type OutboundType = 'direct' | 'relay';
 
+export type XrayNodeProtocol = 'vless' | 'vmess' | 'trojan' | 'shadowsocks' | 'socks' | 'http';
+
+export type XrayNodeTemplate =
+  | 'xray-vless-reality'
+  | 'xray-vmess-ws-tls'
+  | 'xray-trojan-tls'
+  | 'xray-ss'
+  | 'xray-socks'
+  | 'xray-http';
+
+export type XrayTlsMode = 'none' | 'reality' | 'tls';
+
 export interface AgentInfo {
   token: string;
   agent_version: string;
@@ -62,6 +74,8 @@ export interface Server {
   last_seen: string | null;
   /** agent 模式才有 */
   agent?: AgentInfo;
+  xray_version?: string;
+  xray_ping_status?: PingStatus;
 }
 
 export interface ServerInput {
@@ -151,6 +165,43 @@ export interface NodePatch {
   authPassword?: string;
 }
 
+export interface XrayNodeItem {
+  id: number;
+  name: string;
+  server_id: number;
+  server_name: string;
+  protocol: XrayNodeProtocol;
+  listen_port: number;
+  enabled: 0 | 1;
+  tls_mode: XrayTlsMode;
+  transport: 'raw' | 'ws' | 'tcp';
+  sni?: string;
+  ws_path?: string;
+  flow?: string;
+  share_link: string | null;
+  note: string;
+  created_at: string;
+}
+
+export interface XrayNodeCreateInput {
+  template: XrayNodeTemplate;
+  name: string;
+  serverId: number;
+  sni?: string;
+  flow?: string;
+  port?: number;
+}
+
+export interface XrayNodePatch {
+  name?: string;
+  note?: string;
+  enabled?: boolean;
+  sni?: string;
+  flow?: string;
+  port?: number;
+  protocol?: XrayNodeProtocol;
+}
+
 export type DeployResult =
   | { ok: true; steps?: string[] }
   | { ok: false; error: string };
@@ -214,4 +265,18 @@ export interface ApiModule {
   createSni(domain: string, note: string): Promise<SniItem>;
   updateSni(id: number, payload: { domain?: string; note?: string }): Promise<SniItem>;
   deleteSni(id: number): Promise<{ ok: true }>;
+
+  // ---- Xray ----
+  getXrayNodes(): Promise<XrayNodeItem[]>;
+  createXrayNode(
+    payload: XrayNodeCreateInput,
+  ): Promise<{ node: XrayNodeItem; deploy: DeployResult | null }>;
+  updateXrayNode(
+    id: number,
+    payload: XrayNodePatch,
+  ): Promise<{ node: XrayNodeItem; deploy: DeployResult | null }>;
+  deleteXrayNode(id: number): Promise<{ ok: true; deploy: DeployResult | null }>;
+  installXrayServer(id: number): Promise<ControlResult>;
+  restartXrayServer(id: number): Promise<ControlResult>;
+  uninstallXrayServer(id: number): Promise<ControlResult>;
 }

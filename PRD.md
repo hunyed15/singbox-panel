@@ -5,15 +5,16 @@
 
 ## 1. 项目介绍
 
-SingBox 面板是一个**个人自用的 sing-box 节点管理面板**:在一台中心机上部署,集中管理多台 Linux 服务器上运行的 sing-box,通过 Web 界面完成「服务器管理 → 节点创建 → 配置下发 → 订阅导出」的全流程,替代手工编辑每台机器的 `config.json` 与 SSH 操作。
+SingBox 面板是一个**个人自用的 sing-box/Xray-core 双核心节点管理面板**:在一台中心机上部署,集中管理多台 Linux 服务器上运行的 sing-box 与 Xray-core,通过 Web 界面完成「服务器管理 → 节点创建 → 配置下发 → 订阅导出」的全流程,替代手工编辑每台机器的 `config.json` 与 SSH 操作。
 
-项目的形态定位是**个人版的 3x-ui / xray-ui**:
+项目的形态定位是**个人版的 3x-ui / xray-ui**,但进一步支持双核心共存:
 
 - 保留 3x-ui 系「网页可视化建节点、分享链接、订阅」的核心体验,但砍掉一切商业化逻辑(多用户、计费、套餐、流量统计、到期),单管理员、纯自用;
-- 核心引擎是 **sing-box**(而非 xray-core):用户现有 6 台服务器已从 v2ray 转向 sing-box,面板与客户端链路统一在 sing-box 生态;
+- 核心引擎支持 **sing-box 与 Xray-core (XTLS) 双核心并存**:每台机器可同时运行 sing-box 和 xray,各自独立配置、独立 systemd unit;
 - 节点创建采用**模板制(傻瓜式)**:不暴露协议参数细节,选一张模板卡片 → 填名称与入口机 → 一键生成(端口、UUID/密码、Reality 密钥、自签证书全部自动),需要时再展开高级设置;
-- 支持**中转链路**这一机场级能力:节点可配置「出口」——直连本机,或经中转机(入口)→ 落地机出网,客户端只感知一个普通节点;
-- 节点控制 **V1 以 SSH 为主**(面板直连,机器端零组件);Agent 脚本注册留作后续扩展,供面板不可达(如 NAT)的机器使用。面板统一执行 安装/重启/卸载 sing-box 与配置下发。
+- 支持**中转链路**这一机场级能力:节点可配置「出口」——直连本机,或经中转机(入口)→ 落地机出网,客户端只感知一个普通节点(Xray 节点 V1 仅直连);
+- 节点控制 **V1 以 SSH 为主**(面板直连,机器端零组件);Agent 脚本注册留作后续扩展,供面板不可达(如 NAT)的机器使用;
+- 订阅分为 **SingBox 订阅**(base64 + sing-box JSON)与 **Xray 订阅**(base64 分享链接),各自独立链接,客户端按核心选择。
 
 ## 2. 解决的问题
 
@@ -69,12 +70,13 @@ SingBox 面板是一个**个人自用的 sing-box 节点管理面板**:在一台
 | 节点编辑 | **V1 支持**:名称/备注/启停/出口(直连/中转+落地机)/SNI/端口/协议;改协议 = 凭据自动重新生成并提示「客户端需更新」 |
 | 端口策略 | 创建时**自动分配并展示,可手动覆盖**(后端校验同机唯一),方便对齐已有防火墙规则 |
 | 凭据管理 | 面板自动生成随机端口/UUID/密码/Reality 密钥/自签证书,加密入库绑定节点;客户端经分享链接/订阅获取 |
-| 订阅 | 双格式:base64(按协议分享链接列表)+ sing-box JSON,UA 自动判定 + ?format 强制;SOCKS/HTTP 节点仅走 sing-box JSON |
+| 订阅 | 双格式:base64(按协议分享链接列表)+ sing-box JSON,UA 自动判定 + ?format 强制;SOCKS/HTTP 节点仅走 sing-box JSON。**Xray 订阅**输出纯 base64,独立链接 `/sub/xray/<slug>` |
 | 监控 | **被动**:打开面板/点刷新时按需检查各机 sing-box 状态(SSH exec `sing-box version` + `systemctl is-active`),无常驻轮询;检查中显示「检查中」态,检查完缓存 |
 | reload 失败 | **自动回滚**上一份配置 + 页面明确提示「已回滚」(deploy 已有备份能力) |
 | 订阅使用范围 | 个人自用,不对外分享;slug 轮换能力保留(改 slug 旧链接立即失效),防公网扫描 |
 | 面板安全 | 单管理员登录(JWT)+ 建议反代 HTTPS |
 | 不做 | 多用户 / 计费 / 套餐 / 流量统计 / 到期 / 多级串联(仅入口→落地两级) |
+| Xray 核心 | 面板额外支持 **Xray-core (XTLS)** 双核心并存。V1 支持 6 个协议模板(VLESS+Reality/VMess+WS+TLS/Trojan+TLS/Shadowsocks/SOCKS/HTTP),**仅直连**(不做中转,需中转用 SingBox 节点)。Xray 节点共享 sing-box 的自签证书与域名库。订阅输出纯 base64。每台机器通过独立 systemd unit 同时运行两个核心。 |
 
 ## 6. 架构总览
 
@@ -133,19 +135,29 @@ SingBox 面板是一个**个人自用的 sing-box 节点管理面板**:在一台
 ## 8. 数据模型(SQLite)
 
 ```
-servers           # 机器
+servers           # 机器(+xray 扩展列: xray_version, xray_ping_status, xray_last_seen)
   id, name, role(relay|landing), control(ssh|agent), host, client_host(对外地址/域名),
   ssh_port, ssh_user, ssh_auth_type(key|password), ssh_auth_secret(加密存储), ssh_sudo,
-  region, ping_status(online|offline|inactive|unknown), singbox_version, last_seen
+  region, ping_status(online|offline|inactive|unknown), singbox_version, last_seen,
+  xray_version, xray_ping_status, xray_last_seen
 
-nodes             # 节点 = 入站 + 出口(替代原 links)
+nodes             # SingBox 节点 = 入站 + 出口
   id, name, server_id(入口监听机), protocol(11 种), listen_port(随机), enabled,
   creds_enc(JSON 加密: uuid/password/method/username), tls_mode(none|reality|tls|shadowtls),
   sni, transport(raw|ws), ws_path, outbound_type(direct|relay), landing_server_id,
   tunnel_address, tunnel_port, note, created_at
 
+xray_nodes        # Xray-core 节点(独立表,协议集不同)
+  id, name, server_id, protocol(vless/vmess/trojan/shadowsocks/socks/http),
+  listen_port, enabled, creds_enc(加密), tls_mode(none|reality|tls),
+  sni, transport(raw|ws|tcp), ws_path, flow(xtls-rprx-vision), outbound_type,
+  landing_server_id, tunnel_address, tunnel_port, note, created_at
+
+xray_server_settings  # Xray 机器级 Reality 密钥
+  server_id, reality_public_key, reality_private_key, short_id, port_base
+
 sni_library       # Reality 借站域名库(id, domain, note 含 ✓可用/⚠️不兼容标注, builtin)
-settings          # 面板配置(订阅 slug 等)
+settings          # 面板配置(订阅 slug 等: sing-box 与 xray 共用同一 slug)
 users             # 单管理员(bcrypt;支持在线改用户名/密码)
 ```
 

@@ -15,6 +15,9 @@ import type {
   Settings,
   SniItem,
   TestResult,
+  XrayNodeCreateInput,
+  XrayNodeItem,
+  XrayNodePatch,
 } from './types';
 
 async function request<T>(
@@ -144,6 +147,43 @@ export const updateSni = (
 export const deleteSni = (id: number): Promise<{ ok: true }> =>
   request<{ ok: true }>(`/api/snis/${id}`, { method: 'DELETE' });
 
+// ---- Xray 节点 ----
+export const getXrayNodes = (): Promise<XrayNodeItem[]> =>
+  request<XrayNodeItem[]>('/api/xray/nodes');
+
+export const createXrayNode = (
+  payload: XrayNodeCreateInput,
+): Promise<{ node: XrayNodeItem; deploy: DeployResult | null }> =>
+  request<{ node: XrayNodeItem; deploy: DeployResult | null }>('/api/xray/nodes', {
+    method: 'POST',
+    body: payload,
+  });
+
+export const updateXrayNode = (
+  id: number,
+  payload: XrayNodePatch,
+): Promise<{ node: XrayNodeItem; deploy: DeployResult | null }> =>
+  request<{ node: XrayNodeItem; deploy: DeployResult | null }>(`/api/xray/nodes/${id}`, {
+    method: 'PUT',
+    body: payload,
+  });
+
+export const deleteXrayNode = (
+  id: number,
+): Promise<{ ok: true; deploy: DeployResult | null }> =>
+  request<{ ok: true; deploy: DeployResult | null }>(`/api/xray/nodes/${id}`, {
+    method: 'DELETE',
+  });
+
+export const installXrayServer = (id: number): Promise<ControlResult> =>
+  request<ControlResult>(`/api/servers/${id}/xray-install`, { method: 'POST' });
+
+export const restartXrayServer = (id: number): Promise<ControlResult> =>
+  request<ControlResult>(`/api/servers/${id}/xray-restart`, { method: 'POST' });
+
+export const uninstallXrayServer = (id: number): Promise<ControlResult> =>
+  request<ControlResult>(`/api/servers/${id}/xray-uninstall`, { method: 'POST' });
+
 export const api: ApiModule = {
   login,
   getMe,
@@ -168,4 +208,11 @@ export const api: ApiModule = {
   createSni,
   updateSni,
   deleteSni,
+  getXrayNodes,
+  createXrayNode,
+  updateXrayNode,
+  deleteXrayNode,
+  installXrayServer,
+  restartXrayServer,
+  uninstallXrayServer,
 };

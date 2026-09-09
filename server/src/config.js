@@ -29,5 +29,12 @@ export function loadConfig(env = process.env) {
     singboxVersion: env.SINGBOX_VERSION || 'latest',
     checkTimeoutMs: parseInt(env.CHECK_TIMEOUT_MS || '15000', 10),
     deployTimeoutMs: parseInt(env.DEPLOY_TIMEOUT_MS || '60000', 10),
+    xrayBin: env.XRAY_BIN || '/usr/local/bin/xray',
+    xrayConfig: env.XRAY_CONFIG || '/etc/xray/config.json',
+    xrayUnit: env.XRAY_UNIT || 'xray',
+    xrayDownloadBase:
+      env.XRAY_DOWNLOAD_BASE ||
+      'https://github.com/XTLS/Xray-core/releases/download',
+    xrayVersion: env.XRAY_VERSION || 'latest',
   };
 }
