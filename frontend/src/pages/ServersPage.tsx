@@ -29,6 +29,12 @@ const CONTROL_LABEL: Record<'install' | 'restart' | 'uninstall', string> = {
   uninstall: '卸载',
 };
 
+const XRAY_CONTROL_LABEL: Record<'install' | 'restart' | 'uninstall', string> = {
+  install: '安装 xray',
+  restart: '重启 xray',
+  uninstall: '卸载 xray',
+};
+
 /**
  * 服务器列表:CRUD + 状态列 + 控制列(安装/重启/卸载 sing-box,agent 模式另有安装脚本)。
  * 覆盖 PRD §6.1/§6.3 与 Q1「完全体」控制能力。
@@ -123,6 +129,31 @@ export function ServersPage() {
     }
   };
 
+  const handleXrayControl = async (
+    action: 'install' | 'restart' | 'uninstall',
+    record: Server,
+  ) => {
+    setBusy(`xray-${action}:${record.id}`);
+    try {
+      const res =
+        action === 'install'
+          ? await api.installXrayServer(record.id)
+          : action === 'restart'
+            ? await api.restartXrayServer(record.id)
+            : await api.uninstallXrayServer(record.id);
+      if ('error' in res) {
+        message.error(`${XRAY_CONTROL_LABEL[action]}失败:${res.error}`);
+      } else {
+        message.success(`${XRAY_CONTROL_LABEL[action]} 成功`);
+        reload();
+      }
+    } catch (err) {
+      message.error(err instanceof Error ? err.message : '操作失败');
+    } finally {
+      setBusy(null);
+    }
+  };
+
   const handleScript = async (record: Server) => {
     setBusy(`script:${record.id}`);
     try {
@@ -205,6 +236,12 @@ export function ServersPage() {
       render: (value: string) => <Typography.Text type="secondary">{value || '-'}</Typography.Text>,
     },
     {
+      title: 'xray',
+      dataIndex: 'xray_version',
+      width: 90,
+      render: (value: string | undefined) => <Typography.Text type="secondary">{value || '-'}</Typography.Text>,
+    },
+    {
       title: '最近探测/心跳',
       dataIndex: 'last_seen',
       width: 130,
@@ -215,7 +252,7 @@ export function ServersPage() {
     {
       title: '操作',
       key: 'actions',
-      width: 420,
+      width: 580,
       render: (_, record) => {
         const agent = record.control === 'agent';
         return (
@@ -250,6 +287,27 @@ export function ServersPage() {
               onClick={() => handleControl('uninstall', record)}
             >
               卸载
+            </Button>
+            <Button
+              type="link"
+              loading={busy === `xray-install:${record.id}`}
+              onClick={() => handleXrayControl('install', record)}
+            >
+              安装 xray
+            </Button>
+            <Button
+              type="link"
+              loading={busy === `xray-restart:${record.id}`}
+              onClick={() => handleXrayControl('restart', record)}
+            >
+              重启 xray
+            </Button>
+            <Button
+              type="link"
+              loading={busy === `xray-uninstall:${record.id}`}
+              onClick={() => handleXrayControl('uninstall', record)}
+            >
+              卸载 xray
             </Button>
             {!agent && (
               <Button
