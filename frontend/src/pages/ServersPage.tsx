@@ -24,9 +24,9 @@ import { formatRelativeTime } from '../utils/format';
 import { CONTROL_META, ROLE_META, SERVER_STATUS_META } from '../utils/status';
 
 const CONTROL_LABEL: Record<'install' | 'restart' | 'uninstall', string> = {
-  install: '安装',
-  restart: '重启',
-  uninstall: '卸载',
+  install: '安装 singbox',
+  restart: '重启 singbox',
+  uninstall: '卸载 singbox',
 };
 
 const XRAY_CONTROL_LABEL: Record<'install' | 'restart' | 'uninstall', string> = {
@@ -119,7 +119,7 @@ export function ServersPage() {
       if ('error' in res) {
         message.error(`${CONTROL_LABEL[action]}失败:${res.error}`);
       } else {
-        message.success(`${CONTROL_LABEL[action]} sing-box 成功`);
+        message.success(`${CONTROL_LABEL[action]} 成功`);
         reload();
       }
     } catch (err) {
@@ -180,13 +180,13 @@ export function ServersPage() {
     {
       title: '名称',
       dataIndex: 'name',
-      width: 130,
+      width: 120,
       render: (value: string) => <Typography.Text strong>{value}</Typography.Text>,
     },
     {
       title: '角色',
       dataIndex: 'role',
-      width: 90,
+      width: 70,
       render: (role: Server['role']) => (
         <Tag color={ROLE_META[role].tagColor}>{ROLE_META[role].text}</Tag>
       ),
@@ -194,7 +194,7 @@ export function ServersPage() {
     {
       title: '控制',
       dataIndex: 'control',
-      width: 90,
+      width: 70,
       render: (control: Server['control']) => (
         <Tag color={CONTROL_META[control].tagColor}>{CONTROL_META[control].text}</Tag>
       ),
@@ -202,28 +202,13 @@ export function ServersPage() {
     {
       title: '地区',
       dataIndex: 'region',
-      width: 70,
+      width: 60,
       render: (value: string) => <Typography.Text type="secondary">{value || '-'}</Typography.Text>,
-    },
-    {
-      title: 'Host',
-      dataIndex: 'host',
-      render: (_: unknown, record) => (
-        <Tooltip
-          title={
-            record.control === 'agent'
-              ? 'agent 模式,地址由机器注册时上报'
-              : `${record.ssh_user}@${record.host}:${record.ssh_port}(${record.ssh_auth_type === 'key' ? '私钥' : '密码'})`
-          }
-        >
-          <Typography.Text code>{record.host || '-'}</Typography.Text>
-        </Tooltip>
-      ),
     },
     {
       title: '状态',
       dataIndex: 'ping_status',
-      width: 90,
+      width: 70,
       render: (status: Server['ping_status']) => {
         const meta = SERVER_STATUS_META[status];
         return <Badge status={meta.status} text={meta.text} />;
@@ -232,19 +217,36 @@ export function ServersPage() {
     {
       title: 'sing-box',
       dataIndex: 'singbox_version',
-      width: 90,
+      width: 80,
       render: (value: string) => <Typography.Text type="secondary">{value || '-'}</Typography.Text>,
     },
     {
       title: 'xray',
       dataIndex: 'xray_version',
-      width: 90,
+      width: 80,
       render: (value: string | undefined) => <Typography.Text type="secondary">{value || '-'}</Typography.Text>,
     },
     {
-      title: '最近探测/心跳',
-      dataIndex: 'last_seen',
+      title: 'Host',
+      dataIndex: 'host',
       width: 130,
+      ellipsis: true,
+      render: (_: unknown, record) => (
+        <Tooltip
+          title={
+            record.control === 'agent'
+              ? 'agent 模式'
+              : `${record.ssh_user}@${record.host}:${record.ssh_port}(${record.ssh_auth_type === 'key' ? '私钥' : '密码'})`
+          }
+        >
+          <Typography.Text code>{record.host || '-'}</Typography.Text>
+        </Tooltip>
+      ),
+    },
+    {
+      title: '最近探测',
+      dataIndex: 'last_seen',
+      width: 110,
       render: (value: string | null) => (
         <Typography.Text type="secondary">{formatRelativeTime(value)}</Typography.Text>
       ),
@@ -252,15 +254,16 @@ export function ServersPage() {
     {
       title: '操作',
       key: 'actions',
-      width: 580,
+      width: 500,
       render: (_, record) => {
         const agent = record.control === 'agent';
         return (
-          <Space>
+          <Space size={[4, 0]} wrap>
             {agent && (
               <Button
                 type="link"
                 icon={<CopyOutlined />}
+                size="small"
                 loading={busy === `script:${record.id}`}
                 onClick={() => handleScript(record)}
               >
@@ -269,49 +272,32 @@ export function ServersPage() {
             )}
             <Button
               type="link"
+              size="small"
               loading={busy === `install:${record.id}`}
               onClick={() => handleControl('install', record)}
             >
-              安装
+              安装 singbox
             </Button>
             <Button
               type="link"
+              size="small"
               loading={busy === `restart:${record.id}`}
               onClick={() => handleControl('restart', record)}
             >
-              重启
+              重启 singbox
             </Button>
             <Button
               type="link"
+              size="small"
               loading={busy === `uninstall:${record.id}`}
               onClick={() => handleControl('uninstall', record)}
             >
-              卸载
-            </Button>
-            <Button
-              type="link"
-              loading={busy === `xray-install:${record.id}`}
-              onClick={() => handleXrayControl('install', record)}
-            >
-              安装 xray
-            </Button>
-            <Button
-              type="link"
-              loading={busy === `xray-restart:${record.id}`}
-              onClick={() => handleXrayControl('restart', record)}
-            >
-              重启 xray
-            </Button>
-            <Button
-              type="link"
-              loading={busy === `xray-uninstall:${record.id}`}
-              onClick={() => handleXrayControl('uninstall', record)}
-            >
-              卸载 xray
+              卸载 singbox
             </Button>
             {!agent && (
               <Button
                 type="link"
+                size="small"
                 icon={<ApiOutlined />}
                 loading={busy === `test:${record.id}`}
                 onClick={() => handleTest(record)}
@@ -319,7 +305,31 @@ export function ServersPage() {
                 测连通
               </Button>
             )}
-            <Button type="link" icon={<EditOutlined />} onClick={() => openEdit(record)}>
+            <Button
+              type="link"
+              size="small"
+              loading={busy === `xray-install:${record.id}`}
+              onClick={() => handleXrayControl('install', record)}
+            >
+              安装 xray
+            </Button>
+            <Button
+              type="link"
+              size="small"
+              loading={busy === `xray-restart:${record.id}`}
+              onClick={() => handleXrayControl('restart', record)}
+            >
+              重启 xray
+            </Button>
+            <Button
+              type="link"
+              size="small"
+              loading={busy === `xray-uninstall:${record.id}`}
+              onClick={() => handleXrayControl('uninstall', record)}
+            >
+              卸载 xray
+            </Button>
+            <Button type="link" size="small" icon={<EditOutlined />} onClick={() => openEdit(record)}>
               编辑
             </Button>
             <Popconfirm
@@ -330,7 +340,7 @@ export function ServersPage() {
               okButtonProps={{ danger: true }}
               onConfirm={() => handleDelete(record)}
             >
-              <Button type="link" danger icon={<DeleteOutlined />}>
+              <Button type="link" size="small" danger icon={<DeleteOutlined />}>
                 删除
               </Button>
             </Popconfirm>
