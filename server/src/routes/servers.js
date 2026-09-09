@@ -311,6 +311,13 @@ WantedBy=multi-user.target
     return m ? m[0].trim() : '';
   }
 
+  /** xray uname -m → 发布包架构名(xray 与 sing-box 命名不同) */
+  function xrayArchFromUname(out) {
+    const m = out.trim();
+    const map = { x86_64: '64', aarch64: 'arm64-v8a', armv7l: 'arm32-v7a', riscv64: 'riscv64' };
+    return map[m] || m;
+  }
+
   async function resolveXrayVersion(config) {
     if (config.xrayVersion !== 'latest') return config.xrayVersion;
     try {
@@ -336,11 +343,12 @@ WantedBy=multi-user.target
       let arch;
       await step('架构探测', async () => {
         const archOut = await ssh.exec(conn, 'uname -m');
-        arch = archFromUname(archOut.stdout);
+        arch = xrayArchFromUname(archOut.stdout);
       });
       const ver = await resolveXrayVersion(config);
-      const asset = `Xray-linux-${arch}.zip`;
-      const url = `${config.xrayDownloadBase}/v${ver}/${asset}`;
+      const tag = `v${ver}`;
+      const asset = `xray-linux-${arch}.zip`;
+      const url = `${config.xrayDownloadBase}/${tag}/${asset}`;
       steps.push('download');
       await step('下载', async () => {
         const dl = (u) =>
