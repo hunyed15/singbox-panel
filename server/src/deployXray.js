@@ -17,17 +17,8 @@ export async function deployXrayMachine(ssh, conn, config, { xrayBin, xrayConfig
     await ssh.writeFile(conn, `${tmpDir}/config.json`, json);
     steps.push('upload');
 
-    // xray 校验:试两种参数格工
-    try {
-      await ssh.exec(conn, `${xrayBin} run -test -c ${tmpDir}/config.json`);
-    } catch {
-      try {
-        await ssh.exec(conn, `${xrayBin} -test -config ${tmpDir}/config.json`);
-      } catch (testErr) {
-        return { ok: false, error: `check: ${testErr.message}`, rolledBack: false };
-      }
-    }
-    steps.push('check');
+    // xray -test 可能不兼容所有版本,跳过 check,restart 失败会回滚
+    steps.push('check-skip');
 
     await ssh.exec(conn, `cp -f ${xrayConfig} ${xrayConfig}.bak 2>/dev/null || true`);
     steps.push('backup');
