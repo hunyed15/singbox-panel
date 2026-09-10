@@ -85,7 +85,6 @@ export function buildXrayInbound({ node, machine }) {
         settings: {
           method: node.creds.method,
           password: node.creds.password,
-          network: 'tcp,udp',
         },
       };
 
@@ -138,7 +137,6 @@ export function buildXrayLandingInbound({ landing }) {
     settings: {
       method: landing.method,
       password: landing.password,
-      network: 'tcp,udp',
     },
   };
 }
