@@ -126,6 +126,13 @@ function migrate(db) {
     db.exec("ALTER TABLE servers ADD COLUMN xray_ping_status TEXT NOT NULL DEFAULT 'unknown' CHECK(xray_ping_status IN ('online','inactive','offline','unknown'))");
     db.exec("ALTER TABLE servers ADD COLUMN xray_last_seen TEXT");
   }
+  // xray 落地机专用 ss 入站端口(与 sing-box 分开,避免端口冲突)
+  const xsc = db.prepare('PRAGMA table_info(xray_server_settings)').all().map((c) => c.name);
+  if (!xsc.includes('in_port')) {
+    db.exec('ALTER TABLE xray_server_settings ADD COLUMN in_port INTEGER');
+    db.exec("ALTER TABLE xray_server_settings ADD COLUMN in_method TEXT NOT NULL DEFAULT 'aes-128-gcm'");
+    db.exec('ALTER TABLE xray_server_settings ADD COLUMN in_password_enc TEXT NOT NULL DEFAULT \'\'');
+  }
 }
 
 /** Reality 借站域名库内置种子(仅空表时插入,可编辑/删除)。

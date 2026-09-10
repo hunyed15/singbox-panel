@@ -5,7 +5,7 @@ import { XRAY_TEMPLATE_META, XRAY_PROTOCOL_DEFAULTS, genXrayNodeCreds, xrayNodeD
 import { buildShareLink } from '../sub.js';
 import { deployXrayServer } from '../deployXrayServices.js';
 
-/** 下发该节点涉及的机器:入口机 + 所有 relay 节点引用的落地机 */
+/** 下发该节点涉及的机器:先落地机(生成 ss 入站端口)后入口机 */
 async function deployAffectedMachines(db, ssh, crypto, config, serverId) {
   const ids = new Set([serverId]);
   const refs = db
@@ -17,9 +17,15 @@ async function deployAffectedMachines(db, ssh, crypto, config, serverId) {
   refs.forEach((r) => ids.add(r.landing_server_id));
 
   const results = [];
+  // 先部署落地机(生成 xray 专用 ss 入站端口)
   for (const id of ids) {
-    results.push({ serverId: id, ...(await deployXrayServer(db, ssh, crypto, config, id)) });
+    if (id !== serverId) {
+      results.push({ serverId: id, ...(await deployXrayServer(db, ssh, crypto, config, id)) });
+    }
   }
+  // 再部署入口机(此时落地机端口已就绪)
+  results.push({ serverId, ...(await deployXrayServer(db, ssh, crypto, config, serverId)) });
+
   const failed = results.find((r) => r.ok === false);
   if (failed) {
     return {

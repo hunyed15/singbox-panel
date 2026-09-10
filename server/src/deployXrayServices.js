@@ -58,28 +58,51 @@ export function collectXrayMachineData(db, crypto, appSecret, machineId) {
   const landingIds = [...new Set(nodes.map((n) => n.landing_server_id).filter(Boolean))];
   for (const id of landingIds) {
     const srv = db.prepare('SELECT host, client_host FROM servers WHERE id = ?').get(id);
-    // For xray relay, use standard AEAD shadowsocks on landing
-    const ls = db.prepare('SELECT * FROM landing_settings WHERE server_id = ?').get(id);
-    if (ls && srv) {
+    // 用 xray 专用落地端口(与 sing-box 分开,避免端口冲突)
+    const xs = db.prepare('SELECT * FROM xray_server_settings WHERE server_id = ?').get(id);
+    if (xs && xs.in_port && srv) {
       landings[id] = {
         host: srv.client_host || srv.host,
-        in_port: ls.in_port,
-        method: 'aes-128-gcm',
-        password: crypto.decrypt(appSecret, ls.password),
+        in_port: xs.in_port,
+        method: xs.in_method || 'aes-128-gcm',
+        password: crypto.decrypt(appSecret, xs.in_password_enc),
       };
     }
   }
 
-  // Xray 落地机设置（复用 sing-box landing_settings 的端口，但用 AEAD 方法）
+  // Xray 落地机设置（使用 xray_server_settings 中独立端口，与 sing-box 分开）
   let xrayLandingSettings = null;
   if (row.role === 'landing') {
-    const ls = db.prepare('SELECT * FROM landing_settings WHERE server_id = ?').get(machineId);
-    if (ls) {
-      xrayLandingSettings = {
-        in_port: ls.in_port,
-        method: 'aes-128-gcm',
-        password: crypto.decrypt(appSecret, ls.password),
-      };
+    // 懒生成 xray 落地机 ss 入站设置
+    const xs = db.prepare('SELECT * FROM xray_server_settings WHERE server_id = ?').get(machineId);
+    const hasRelayRef = db
+      .prepare("SELECT COUNT(*) c FROM xray_nodes WHERE landing_server_id = ? AND enabled = 1 AND outbound_type = 'relay'")
+      .get(machineId).c > 0;
+    if (hasRelayRef) {
+      if (xs && xs.in_port) {
+        xrayLandingSettings = {
+          in_port: xs.in_port,
+          method: xs.in_method || 'aes-128-gcm',
+          password: crypto.decrypt(appSecret, xs.in_password_enc),
+        };
+      } else {
+        // 首次:生成独立端口和密码
+        const portBase = xs?.port_base || 41000;
+        let port = portBase + machineId;
+        const sbPort = db.prepare('SELECT in_port FROM landing_settings WHERE server_id = ?').get(machineId);
+        if (sbPort && sbPort.in_port === port) port += 100;
+        const password = crypto.genSsPassword();
+        const enc = crypto.encrypt(appSecret, password);
+        if (xs) {
+          db.prepare('UPDATE xray_server_settings SET in_port=?, in_method=?, in_password_enc=? WHERE server_id=?')
+            .run(port, 'aes-128-gcm', enc, machineId);
+        } else {
+          db.prepare(
+            'INSERT OR REPLACE INTO xray_server_settings (server_id, reality_public_key, reality_private_key, short_id, port_base, in_port, in_method, in_password_enc) VALUES (?,?,?,?,?,?,?,?)',
+          ).run(machineId, '', '', '', 41000, port, 'aes-128-gcm', enc);
+        }
+        xrayLandingSettings = { in_port: port, method: 'aes-128-gcm', password };
+      }
     }
   }
 
