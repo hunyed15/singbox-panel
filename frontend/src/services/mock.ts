@@ -840,6 +840,7 @@ export const createXrayNode = async (payload: XrayNodeCreateInput): Promise<{ no
     sni: creds.sni,
     ws_path: creds.wsPath,
     flow,
+    outbound_type: 'direct',
     share_link: xrayShareLink(name, server.host, port, meta.protocol, creds),
     note: '',
     created_at: iso(0),

@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
-import { Alert, App, Flex, Form, Input, InputNumber, Modal, Select, Switch, Typography } from 'antd';
+import { Alert, App, Flex, Form, Input, InputNumber, Modal, Segmented, Select, Switch, Typography } from 'antd';
 import { api } from '../services';
-import type { DeployResult, SniItem, XrayNodeItem, XrayNodeProtocol } from '../services/types';
+import type { DeployResult, OutboundType, Server, SniItem, XrayNodeItem, XrayNodeProtocol } from '../services/types';
 import { XRAY_PROTOCOL_META } from '../utils/status';
 
 interface XrayNodeEditModalProps {
   open: boolean;
   node: XrayNodeItem | null;
+  landings: Server[];
   snis: SniItem[];
   onClose: () => void;
   onSaved: (result: { node: XrayNodeItem; deploy: DeployResult | null }) => void;
@@ -18,6 +19,8 @@ interface FormValues {
   note: string;
   enabled: boolean;
   port: number;
+  outboundType: OutboundType;
+  landingServerId?: number;
   sni?: string;
   flow?: string;
 }
@@ -27,12 +30,19 @@ const PROTOCOL_OPTIONS = (Object.keys(XRAY_PROTOCOL_META) as XrayNodeProtocol[])
   label: XRAY_PROTOCOL_META[p].text,
 }));
 
-export function XrayNodeEditModal({ open, node, snis, onClose, onSaved }: XrayNodeEditModalProps) {
+const OUTBOUND_OPTIONS = [
+  { label: '直连', value: 'direct' },
+  { label: '中转', value: 'relay' },
+];
+
+export function XrayNodeEditModal({ open, node, landings, snis, onClose, onSaved }: XrayNodeEditModalProps) {
   const [form] = Form.useForm<FormValues>();
   const { message } = App.useApp();
   const [saving, setSaving] = useState(false);
   const protocol = Form.useWatch('protocol', form) ?? node?.protocol;
+  const outboundType = Form.useWatch('outboundType', form) ?? node?.outbound_type;
 
+  const landingOptions = landings.map((s) => ({ value: s.id, label: `${s.name} · ${s.host}` }));
   const sniOptions = snis.map((s) => ({
     value: s.domain,
     label: s.note ? `${s.domain} · ${s.note}` : s.domain,
@@ -47,6 +57,8 @@ export function XrayNodeEditModal({ open, node, snis, onClose, onSaved }: XrayNo
       note: node.note,
       enabled: node.enabled === 1,
       port: node.listen_port,
+      outboundType: node.outbound_type || 'direct',
+      landingServerId: node.landing_server_id,
       sni: node.sni,
       flow: node.flow || '',
     });
@@ -68,6 +80,8 @@ export function XrayNodeEditModal({ open, node, snis, onClose, onSaved }: XrayNo
         enabled: values.enabled,
         port: Number(values.port),
         protocol: values.protocol,
+        outboundType: values.outboundType,
+        landingServerId: values.outboundType === 'relay' ? Number(values.landingServerId) : undefined,
         sni: values.protocol === 'vless' ? values.sni : undefined,
         flow: values.protocol === 'vless' ? (values.flow || 'xtls-rprx-vision') : undefined,
       });
@@ -124,6 +138,18 @@ export function XrayNodeEditModal({ open, node, snis, onClose, onSaved }: XrayNo
             <Switch />
           </Form.Item>
         </Flex>
+        <Form.Item name="outboundType" label="出口">
+          <Segmented options={OUTBOUND_OPTIONS} block />
+        </Form.Item>
+        {outboundType === 'relay' && (
+          <Form.Item
+            name="landingServerId"
+            label="中转落地机(客户端经入口机 → 该落地机出网)"
+            rules={[{ required: true, message: '请选择落地机' }]}
+          >
+            <Select options={landingOptions} />
+          </Form.Item>
+        )}
         {protocol === 'vless' && (
           <>
             <Form.Item name="sni" label="Reality 借站域名(SNI)">

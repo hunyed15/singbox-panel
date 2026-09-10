@@ -22,8 +22,7 @@ function tlsSettings(machine) {
  */
 export function buildXrayInbound({ node, machine }) {
   const { protocol } = node;
-  const listen = node.listen_port;
-  const base = { port: listen, listen: '0.0.0.0' };
+  const base = { tag: `relay-in-${node.listen_port}`, port: node.listen_port, listen: '0.0.0.0' };
 
   switch (protocol) {
     case 'vless':
@@ -132,6 +131,7 @@ export function buildXrayInbound({ node, machine }) {
  */
 export function buildXrayLandingInbound({ landing }) {
   return {
+    tag: `landing-in-${landing.in_port}`,
     port: landing.in_port,
     listen: '0.0.0.0',
     protocol: 'shadowsocks',

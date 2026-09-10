@@ -5,10 +5,30 @@ import { XRAY_TEMPLATE_META, XRAY_PROTOCOL_DEFAULTS, genXrayNodeCreds, xrayNodeD
 import { buildShareLink } from '../sub.js';
 import { deployXrayServer } from '../deployXrayServices.js';
 
-/** 下发该节点涉及的机器 */
+/** 下发该节点涉及的机器:入口机 + 所有 relay 节点引用的落地机 */
 async function deployAffectedMachines(db, ssh, crypto, config, serverId) {
-  const result = await deployXrayServer(db, ssh, crypto, config, serverId);
-  return result;
+  const ids = new Set([serverId]);
+  const refs = db
+    .prepare(
+      `SELECT DISTINCT landing_server_id FROM xray_nodes
+       WHERE server_id = ? AND outbound_type = 'relay' AND landing_server_id IS NOT NULL`,
+    )
+    .all(serverId);
+  refs.forEach((r) => ids.add(r.landing_server_id));
+
+  const results = [];
+  for (const id of ids) {
+    results.push({ serverId: id, ...(await deployXrayServer(db, ssh, crypto, config, id)) });
+  }
+  const failed = results.find((r) => r.ok === false);
+  if (failed) {
+    return {
+      ok: false,
+      error: `机器 #${failed.serverId} 下发失败: ${failed.error}`,
+      rolledBack: failed.rolledBack,
+    };
+  }
+  return { ok: true, steps: results.flatMap((r) => r.steps || []) };
 }
 
 /** 构造 xray 节点响应 */
@@ -81,12 +101,19 @@ export function makeXrayNodesRouter({ db, crypto, appSecret, ssh, config }) {
 
   router.post('/', async (req, res) => {
     const b = req.body || {};
-    const { template, name, serverId } = b;
+    const { template, name, serverId, outboundType = 'direct' } = b;
     if (!name || !serverId) throw new ApiError(400, 'name/serverId 必填');
     const server = db.prepare('SELECT * FROM servers WHERE id = ?').get(serverId);
     if (!server) throw new ApiError(400, '入口机不存在');
     const meta = XRAY_TEMPLATE_META[template];
     if (!meta) throw new ApiError(400, '未知模板');
+
+    let landingId = null;
+    if (outboundType === 'relay') {
+      const landing = db.prepare('SELECT id, role FROM servers WHERE id = ?').get(b.landingServerId);
+      if (!landing || landing.role !== 'landing') throw new ApiError(400, '中转出口需要选择落地机');
+      landingId = landing.id;
+    }
 
     // 端口分配
     const used = db
@@ -108,8 +135,8 @@ export function makeXrayNodesRouter({ db, crypto, appSecret, ssh, config }) {
 
     const info = db
       .prepare(
-        `INSERT INTO xray_nodes (name, server_id, protocol, listen_port, enabled, creds_enc, tls_mode, sni, transport, ws_path, flow, outbound_type, note, created_at)
-         VALUES (?,?,?,?,1,?,?,?,?,?,?,?,?,?)`,
+        `INSERT INTO xray_nodes (name, server_id, protocol, listen_port, enabled, creds_enc, tls_mode, sni, transport, ws_path, flow, outbound_type, landing_server_id, note, created_at)
+         VALUES (?,?,?,?,1,?,?,?,?,?,?,?,?,?,?)`,
       )
       .run(
         name,
@@ -122,7 +149,8 @@ export function makeXrayNodesRouter({ db, crypto, appSecret, ssh, config }) {
         meta.transport,
         wsPath,
         flow,
-        'direct',
+        outboundType,
+        landingId,
         '',
         new Date().toISOString(),
       );
@@ -163,11 +191,21 @@ export function makeXrayNodesRouter({ db, crypto, appSecret, ssh, config }) {
       sni = b.sni.trim() || sni;
     }
 
+    const outboundType = b.outboundType ?? row.outbound_type;
+    let landingId = row.landing_server_id;
+    if (b.outboundType === 'direct') landingId = null;
+    if (b.landingServerId !== undefined) {
+      if (outboundType === 'direct') throw new ApiError(400, '直连节点无需落地机');
+      const landing = db.prepare('SELECT id, role FROM servers WHERE id = ?').get(b.landingServerId);
+      if (!landing || landing.role !== 'landing') throw new ApiError(400, '落地机非法');
+      landingId = landing.id;
+    }
+
     const port = b.port !== undefined ? Number(b.port) : row.listen_port;
     if (b.port !== undefined) assertPortFree(db, row.server_id, port, id);
 
     db.prepare(
-      `UPDATE xray_nodes SET name=?, protocol=?, listen_port=?, enabled=?, creds_enc=?, tls_mode=?, sni=?, transport=?, ws_path=?, flow=?, note=?
+      `UPDATE xray_nodes SET name=?, protocol=?, listen_port=?, enabled=?, creds_enc=?, tls_mode=?, sni=?, transport=?, ws_path=?, flow=?, outbound_type=?, landing_server_id=?, note=?
        WHERE id=?`,
     ).run(
       b.name ?? row.name,
@@ -180,6 +218,8 @@ export function makeXrayNodesRouter({ db, crypto, appSecret, ssh, config }) {
       transport,
       wsPath,
       flow,
+      outboundType,
+      landingId,
       b.note ?? row.note,
       id,
     );

@@ -3,7 +3,7 @@ import { Alert, App, Badge, Button, Flex, Popconfirm, Switch, Table, Tag, Typogr
 import { CopyOutlined, DeleteOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { api } from '../services';
-import type { DeployResult, Server, XrayNodeItem } from '../services/types';
+import type { DeployResult, Server, SniItem, XrayNodeItem } from '../services/types';
 import { useAsyncData } from '../hooks/useAsyncData';
 import { XrayNodeCreateModal } from '../components/XrayNodeCreateModal';
 import { XrayNodeEditModal } from '../components/XrayNodeEditModal';
@@ -17,15 +17,18 @@ export function XrayNodesPage() {
   const [deployError, setDeployError] = useState<string | null>(null);
 
   const { data, loading, error, reload } = useAsyncData(async () => {
-    const [nodes, servers] = await Promise.all([
+    const [nodes, servers, snis] = await Promise.all([
       api.getXrayNodes(),
       api.getServers(),
+      api.getSnis(),
     ]);
-    return { nodes, servers };
+    return { nodes, servers, snis };
   });
 
   const nodes = data?.nodes ?? [];
   const servers: Server[] = data?.servers ?? [];
+  const snis: SniItem[] = data?.snis ?? [];
+  const landings = servers.filter((s) => s.role === 'landing');
   const onlineServerIds = new Set(
     servers.filter((s) => s.ping_status === 'online').map((s) => s.id),
   );
@@ -104,6 +107,19 @@ export function XrayNodesPage() {
       dataIndex: 'listen_port',
       width: 90,
       render: (value: number) => <Typography.Text code>{value}</Typography.Text>,
+    },
+    {
+      title: '出口',
+      key: 'outbound',
+      width: 160,
+      render: (_, record) =>
+        record.outbound_type === 'direct' ? (
+          <Typography.Text type="secondary">直连</Typography.Text>
+        ) : (
+          <Typography.Text>
+            中转 <Typography.Text type="secondary">→</Typography.Text> {record.landing_name || '-'}
+          </Typography.Text>
+        ),
     },
     {
       title: '状态',
@@ -225,7 +241,8 @@ export function XrayNodesPage() {
       <XrayNodeCreateModal
         open={createOpen}
         servers={servers}
-        snis={[]}
+        landings={landings}
+        snis={snis}
         onClose={() => setCreateOpen(false)}
         onCreated={(result) => {
           setCreateOpen(false);
@@ -237,7 +254,8 @@ export function XrayNodesPage() {
       <XrayNodeEditModal
         open={editing !== null}
         node={editing}
-        snis={[]}
+        landings={landings}
+        snis={snis}
         onClose={() => setEditing(null)}
         onSaved={(result) => {
           setEditing(null);

@@ -178,6 +178,9 @@ export interface XrayNodeItem {
   sni?: string;
   ws_path?: string;
   flow?: string;
+  outbound_type: OutboundType;
+  landing_server_id?: number;
+  landing_name?: string;
   share_link: string | null;
   note: string;
   created_at: string;
@@ -190,6 +193,8 @@ export interface XrayNodeCreateInput {
   sni?: string;
   flow?: string;
   port?: number;
+  outboundType?: OutboundType;
+  landingServerId?: number;
 }
 
 export interface XrayNodePatch {
@@ -200,6 +205,8 @@ export interface XrayNodePatch {
   flow?: string;
   port?: number;
   protocol?: XrayNodeProtocol;
+  outboundType?: OutboundType;
+  landingServerId?: number;
 }
 
 export type DeployResult =

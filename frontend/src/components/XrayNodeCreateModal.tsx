@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { Alert, App, Card, Flex, Form, Input, InputNumber, Modal, Select, Typography, theme } from 'antd';
+import { Segmented } from 'antd';
 import { api } from '../services';
 import type {
   DeployResult,
+  OutboundType,
   Server,
   SniItem,
   XrayNodeItem,
@@ -12,6 +14,7 @@ import type {
 interface XrayNodeCreateModalProps {
   open: boolean;
   servers: Server[];
+  landings: Server[];
   snis: SniItem[];
   onClose: () => void;
   onCreated: (result: { node: XrayNodeItem; deploy: DeployResult | null }) => void;
@@ -20,6 +23,8 @@ interface XrayNodeCreateModalProps {
 interface FormValues {
   name: string;
   serverId: number;
+  outboundType: OutboundType;
+  landingServerId?: number;
   sni?: string;
   flow?: string;
   port?: number;
@@ -37,6 +42,7 @@ const TEMPLATES: { key: XrayNodeTemplate; title: string; desc: string }[] = [
 export function XrayNodeCreateModal({
   open,
   servers,
+  landings,
   snis,
   onClose,
   onCreated,
@@ -47,11 +53,13 @@ export function XrayNodeCreateModal({
   const [template, setTemplate] = useState<XrayNodeTemplate>('xray-vless-reality');
   const [creating, setCreating] = useState(false);
   const ready = servers.length > 0;
+  const outboundType = Form.useWatch('outboundType', form) ?? ('direct' as OutboundType);
 
   const serverOptions = servers.map((s) => ({
     value: s.id,
     label: `${s.name}(${s.role === 'relay' ? '中转机' : '落地机'})`,
   }));
+  const landingOptions = landings.map((s) => ({ value: s.id, label: `${s.name} · ${s.host}` }));
   const sniOptions = snis.map((s) => ({
     value: s.domain,
     label: s.note ? `${s.domain} · ${s.note}` : s.domain,
@@ -70,6 +78,8 @@ export function XrayNodeCreateModal({
         template,
         name: values.name,
         serverId: Number(values.serverId),
+        outboundType: values.outboundType,
+        landingServerId: values.outboundType === 'relay' ? Number(values.landingServerId) : undefined,
         sni: template === 'xray-vless-reality' ? values.sni ?? snis[0]?.domain ?? 'www.microsoft.com' : undefined,
         flow: template === 'xray-vless-reality' ? (values.flow || 'xtls-rprx-vision') : undefined,
         port: values.port ? Number(values.port) : undefined,
@@ -81,6 +91,11 @@ export function XrayNodeCreateModal({
       setCreating(false);
     }
   };
+
+  const OUTBOUND_OPTIONS = [
+    { label: '直连', value: 'direct' },
+    { label: '中转', value: 'relay' },
+  ];
 
   return (
     <Modal
@@ -161,6 +176,18 @@ export function XrayNodeCreateModal({
         >
           <InputNumber style={{ width: '100%' }} />
         </Form.Item>
+        <Form.Item name="outboundType" label="4 · 出口">
+          <Segmented options={OUTBOUND_OPTIONS} block />
+        </Form.Item>
+        {outboundType === 'relay' && (
+          <Form.Item
+            name="landingServerId"
+            label="5 · 中转落地机(客户端经入口机 → 该落地机出网)"
+            rules={[{ required: true, message: '请选择落地机' }]}
+          >
+            <Select options={landingOptions} />
+          </Form.Item>
+        )}
         {template === 'xray-vless-reality' && (
           <>
             <Form.Item
@@ -181,7 +208,7 @@ export function XrayNodeCreateModal({
         )}
       </Form>
       <Typography.Text type="secondary">
-        端口与凭据(UUID/密码/Reality 密钥/自签证书)自动生成,端口可手动指定;创建后可在列表编辑。V1 仅支持直连,中转请使用 SingBox 节点。
+        端口与凭据(UUID/密码/Reality 密钥/自签证书)自动生成,端口可手动指定;创建后可在列表编辑。中转需先安装 xray 到落地机。
       </Typography.Text>
     </Modal>
   );
