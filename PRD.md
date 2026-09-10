@@ -1,31 +1,37 @@
-# SingBox 个人中转面板 — 设计文档
+# Siray-Panel — 双核心( SingBox + Xray )节点管理面板
 
-日期:2026-08-11(第二次修订)
-状态:已按产品讨论更新(节点模型 / 模板制 / 双控制方式 / Reality 域名库)
+日期:2026-09-11(第三次修订)
+状态:基于双核心实际部署反馈重构架构
+
+> Siray = Sing-box + Xray 的组合词,项目更名为 siray-panel 概念。仓库名保持 singbox-panel。
 
 ## 1. 项目介绍
 
-SingBox 面板是一个**个人自用的 sing-box/Xray-core 双核心节点管理面板**:在一台中心机上部署,集中管理多台 Linux 服务器上运行的 sing-box 与 Xray-core,通过 Web 界面完成「服务器管理 → 节点创建 → 配置下发 → 订阅导出」的全流程,替代手工编辑每台机器的 `config.json` 与 SSH 操作。
+Siray-Panel 是一个**个人自用的 sing-box/Xray-core 双核心节点管理面板**:在一台中心机上部署,通过 SSH 集中管理多台 Linux 服务器上运行的 sing-box 与 Xray-core,通过 Web 界面完成「服务器管理 → 节点创建 → 配置下发 → 订阅导出」全流程。
 
-项目的形态定位是**个人版的 3x-ui / xray-ui**,但进一步支持双核心共存:
+项目的形态定位是**个人版的 3x-ui / xray-ui**,但支持双核心共存:
 
 - 保留 3x-ui 系「网页可视化建节点、分享链接、订阅」的核心体验,但砍掉一切商业化逻辑(多用户、计费、套餐、流量统计、到期),单管理员、纯自用;
 - 核心引擎支持 **sing-box 与 Xray-core (XTLS) 双核心并存**:每台机器可同时运行 sing-box 和 xray,各自独立配置、独立 systemd unit;
-- 节点创建采用**模板制(傻瓜式)**:不暴露协议参数细节,选一张模板卡片 → 填名称与入口机 → 一键生成(端口、UUID/密码、Reality 密钥、自签证书全部自动),需要时再展开高级设置;
-- 支持**中转链路**这一机场级能力:节点可配置「出口」——直连本机,或经中转机(入口)→ 落地机出网,客户端只感知一个普通节点(Xray 节点 V1 仅直连);
-- 节点控制 **V1 以 SSH 为主**(面板直连,机器端零组件);Agent 脚本注册留作后续扩展,供面板不可达(如 NAT)的机器使用;
-- 订阅分为 **SingBox 订阅**(base64 + sing-box JSON)与 **Xray 订阅**(base64 分享链接),各自独立链接,客户端按核心选择。
+- 节点创建采用**模板制(傻瓜式)**:选一张模板卡片 → 填名称与入口机 → 一键生成(端口、UUID/密码、Reality 密钥、自签证书全部自动);
+- **中转链路采用 TCP 端口转发(iptables DNAT)**:入口机无需运行任何核心,纯内核级转发到落地机,客户端只感知一个普通节点;
+- 节点控制 **V1 以 SSH 为主**(面板直连,机器端零组件);支持非 root 用户提权(sudo);
+- 订阅分为 **SingBox 订阅**(base64 + sing-box JSON)与 **Xray 订阅**(base64 分享链接),各自独立链接;
+- 支持**一键部署全部配置**按钮 + **节点连通性测试**(端口/TLS 握手检测)。
 
 ## 2. 解决的问题
 
 | 痛点 | 本项目的解法 |
 |---|---|
-| 手工 SSH 编辑每台机器的 sing-box 配置,易错、重复、无法审计 | 面板统一生成配置并原子下发(生成 → 校验 → 推送 → reload,失败回滚) |
-| 客户端接入需要中转链路(入口机 → 落地机),手工配 detour/路由极易搞错 | 节点模型内置「出口 = 直连 / 经中转机→落地机」,面板自动生成 route 规则 |
-| 不同客户端/网络环境需要不同协议(VLESS+Reality、VMess+TLS、SS、SOCKS…),配置形态五花八门 | 7 个协议模板,选卡片即建即用,端口/凭据/密钥/证书全自动 |
+| 手工 SSH 编辑每台机器的核心配置,易错、重复、无法审计 | 面板统一生成配置并原子下发(生成 → 校验 → 推送 → reload,失败回滚) |
+| 客户端接入需要中转链路(入口机 → 落地机),手工配 detour/路由极易搞错 | **TCP 端口转发(iptables DNAT)**:入口机零核心,纯内核转发,不依赖核心协议 |
+| 不同客户端/网络环境需要不同协议(VLESS+Reality、VMess+TLS、SS、SOCKS…),配置形态五花八门 | 7-11 个协议模板,选卡片即建即用,端口/凭据/密钥/证书全自动 |
+| SingBox 客户端不认 xray 节点,xray 客户端不认 sing-box 节点 | 双核心共存,各自独立订阅,客户端按核心选择 |
 | Reality 借站域名固定写死,某个大站握手失败时无从下手 | 内置大厂域名库(可加/编辑/删除),新建节点时下拉选择 SNI |
 | 订阅管理混乱,客户端导入困难 | 单条订阅链接,UA 自动判定 base64 / sing-box JSON,按协议输出分享链接 |
-| 机器在 NAT 后面,面板无法通过 SSH 直连 | Agent 模式(后续扩展):机器上执行一次安装脚本即注册上线,无需任何入站端口 |
+| 修改节点后部署靠手动逐个触发 | **一键部署全部配置按钮**:遍历所有机器,生成配置并原子下发 |
+| 节点是否可用要到客户端才知 | **节点连通性测试**:端口/TLS 握手检测,面板直接展示 |
+| 部分机器非 root 用户 | SSH 提权标记(sudo -n),命令自动加 sudo |
 | 自建节点后凭据散落在各处,无记录 | 凭据(UUID/密码/Reality 密钥/自签证书)由面板生成并加密持有,客户端通过分享链接/订阅获取 |
 | 面板本身是攻击面 | 单管理员 JWT 鉴权、凭据 AES-256-GCM 加密入库、建议反代 HTTPS |
 
@@ -76,7 +82,7 @@ SingBox 面板是一个**个人自用的 sing-box/Xray-core 双核心节点管�
 | 订阅使用范围 | 个人自用,不对外分享;slug 轮换能力保留(改 slug 旧链接立即失效),防公网扫描 |
 | 面板安全 | 单管理员登录(JWT)+ 建议反代 HTTPS |
 | 不做 | 多用户 / 计费 / 套餐 / 流量统计 / 到期 / 多级串联(仅入口→落地两级) |
-| Xray 核心 | 面板额外支持 **Xray-core (XTLS)** 双核心并存。V1 支持 6 个协议模板(VLESS+Reality/VMess+WS+TLS/Trojan+TLS/Shadowsocks/SOCKS/HTTP),**仅直连**(不做中转,需中转用 SingBox 节点)。Xray 节点共享 sing-box 的自签证书与域名库。订阅输出纯 base64。每台机器通过独立 systemd unit 同时运行两个核心。 |
+| Xray 核心 | 面板额外支持 **Xray-core (XTLS)** 双核心并存。支持 6 个协议模板(VLESS+Reality/VMess+WS+TLS/Trojan+TLS/Shadowsocks/SOCKS/HTTP),**仅直连**,中转通过 iptables 端口转发实现。Xray 节点共享 sing-box 的自签证书与域名库。订阅输出纯 base64。每台机器通过独立 systemd unit 同时运行两个核心。 |
 
 ## 6. 架构总览
 
@@ -86,39 +92,35 @@ SingBox 面板是一个**个人自用的 sing-box/Xray-core 双核心节点管�
     ▼
 [面板: Node.js + React(antd) + SQLite]   ← 中心机
     ├──► SSH 模式:ssh2 直连各机(公网 VPS)
+    │      ├── 管理 sing-box(安装/重启/卸载/部署)
+    │      ├── 管理 xray-core(安装/重启/卸载/部署)
+    │      └── 管理 iptables 规则(端口转发中转)
     └──► (后续扩展)Agent 模式:机器 install.sh 注册 → 轮询任务/回报心跳(NAT 友好)
              ▼
-        [各机 sing-box: 生成 config.json → 原子替换 → reload]
+        [各机 sing-box/xray: 生成 config.json → 原子替换 → reload]
 ```
 
-- 面板只负责生成 `config.json`、下发(SSH exec)、读状态;**不承担流量转发,不读流量统计**。
-- 允许面板与 sing-box 同机(中心机同时也是落地机 3,统一走 SSH 到本机,避免双路径)。
+- 面板只负责生成配置、下发(SSH exec)、读状态;**不承担流量转发,不读流量统计**。
+- 中转链路通过**入口机 iptables DNAT**实现,入口机不运行任何核心,零性能开销。
+- 允许面板与核心同机(中心机同时也是落地机,统一走 SSH 到本机)。
 
 ## 7. 核心配置设计
 
-### 7.1 单节点(中转示例:VLESS+Reality 入口 → ss-2022 落地)
+### 7.1 直连节点
 
-**入口机**:
-```jsonc
-{
-  "inbounds": [
-    { "type": "vless", "listen": "::", "port": 31001,
-      "users": [{ "uuid": "...", "flow": "xtls-rprx-vision" }],
-      "tls": { "enabled": true, "server_name": "<域名库所选 SNI>",
-               "reality": { "enabled": true,
-                            "handshake": { "server": "<SNI>", "port": 443 },
-                            "private_key": "...", "short_id": ["..."] } } }
-  ],
-  "outbounds": [
-    { "type": "direct", "tag": "direct" },
-    { "type": "shadowsocks", "tag": "landing-3", "server": "...", "server_port": 32001,
-      "method": "2022-blake3-aes-128-gcm", "password": "..." }
-  ],
-  "route": { "rules": [{ "inbound": ["31001"], "outbound": "landing-3" }], "final": "direct" }
-}
+```
+客户端 ──VLESS+Reality──▶ 落地机(xray/sing-box) ──▶ 互联网
 ```
 
-**落地机**:一个共享 ss-2022 入站 + direct 出口(与现设计一致,多台中转机可 detour 到同一落地机)。
+### 7.2 中转节点(端口转发)
+
+```
+客户端 ──VLESS+Reality──▶ 入口机(iptables DNAT) ────▶ 落地机(xray/sing-box) ──▶ 互联网
+                            ↑ port 31001 → 落地IP:31001
+```
+
+入口机通过 iptables 规则将端口流量透明转发到落地机,客户端感知不到中转存在。
+转发不加密(中转机和落地机之间可能是内网或同一机房;如需加密请在落地机上用协议 TLS)。
 
 ### 7.2 关键不变式
 
@@ -135,30 +137,35 @@ SingBox 面板是一个**个人自用的 sing-box/Xray-core 双核心节点管�
 ## 8. 数据模型(SQLite)
 
 ```
-servers           # 机器(+xray 扩展列: xray_version, xray_ping_status, xray_last_seen)
-  id, name, role(relay|landing), control(ssh|agent), host, client_host(对外地址/域名),
-  ssh_port, ssh_user, ssh_auth_type(key|password), ssh_auth_secret(加密存储), ssh_sudo,
-  region, ping_status(online|offline|inactive|unknown), singbox_version, last_seen,
+servers           # 机器(+xray 扩展列)
+  id, name, role(relay|landing), control(ssh|agent), host, client_host,
+  ssh_port, ssh_user, ssh_auth_type(key|password), ssh_auth_secret(加密), ssh_sudo,
+  region, ping_status, singbox_version, last_seen,
   xray_version, xray_ping_status, xray_last_seen
 
-nodes             # SingBox 节点 = 入站 + 出口
-  id, name, server_id(入口监听机), protocol(11 种), listen_port(随机), enabled,
-  creds_enc(JSON 加密: uuid/password/method/username), tls_mode(none|reality|tls|shadowtls),
-  sni, transport(raw|ws), ws_path, outbound_type(direct|relay), landing_server_id,
-  tunnel_address, tunnel_port, note, created_at
+nodes             # SingBox 节点(11 协议)
+  id, name, server_id, protocol, listen_port, enabled,
+  creds_enc(加密JSON), tls_mode, sni, transport, ws_path,
+  outbound_type(direct|relay), landing_server_id, tunnel_address, tunnel_port,
+  note, created_at
 
-xray_nodes        # Xray-core 节点(独立表,协议集不同)
-  id, name, server_id, protocol(vless/vmess/trojan/shadowsocks/socks/http),
-  listen_port, enabled, creds_enc(加密), tls_mode(none|reality|tls),
-  sni, transport(raw|ws|tcp), ws_path, flow(xtls-rprx-vision), outbound_type,
-  landing_server_id, tunnel_address, tunnel_port, note, created_at
+xray_nodes        # Xray 节点(6 协议)
+  id, name, server_id, protocol, listen_port, enabled,
+  creds_enc, tls_mode, sni, transport, ws_path, flow,
+  outbound_type(direct), note, created_at
 
 xray_server_settings  # Xray 机器级 Reality 密钥
   server_id, reality_public_key, reality_private_key, short_id, port_base
+  in_port, in_method, in_password_enc   ← 落地机专用 ss 入站(即将废弃)
 
-sni_library       # Reality 借站域名库(id, domain, note 含 ✓可用/⚠️不兼容标注, builtin)
-settings          # 面板配置(订阅 slug 等: sing-box 与 xray 共用同一 slug)
-users             # 单管理员(bcrypt;支持在线改用户名/密码)
+port_forwards     # 端口转发中转(iptables DNAT)【新增】
+  id, name, entry_server_id, landing_server_id,
+  target_node_type(singbox|xray), target_node_id,
+  entry_port, enabled, note, created_at
+
+sni_library       # Reality 借站域名库
+settings          # 面板配置(订阅 slug 等)
+users             # 单管理员(bcrypt)
 ```
 
 凭据存储:节点凭据、`ssh_auth_secret` 用 **AES-256-GCM** 加密入库,主密钥来自 `APP_SECRET`。
@@ -166,31 +173,51 @@ users             # 单管理员(bcrypt;支持在线改用户名/密码)
 ## 9. 功能范围
 
 ### 9.1 服务器管理
-- CRUD,控制方式 **SSH 为主**(配置 host/端口/用户/私钥或密码/**对外地址 client_host**/**需要 sudo**);Agent 留作后续扩展。
-- 面板操作:安装 / 重启 / 卸载 sing-box、SSH 连通性测试、配置下发(失败自动回滚);甲骨文等非 root 用户机器可开「需要 sudo」提权。
-- 状态列:**被动检查**——打开面板/点刷新时按需 SSH 检查(版本 + 运行状态),无常驻轮询。
+- CRUD,控制方式 **SSH 为主**(配置 host/端口/用户/私钥或密码/**对外地址 client_host**/**需要 sudo**);
+- 面板操作:安装/重启/卸载 sing-box、安装/重启/卸载 xray、SSH 连通性测试、配置下发(失败自动回滚);
+- 状态列:**被动检查**——打开面板/点刷新时按需 SSH 检查(版本 + 运行状态),双核心同时检查。
 
-### 9.2 节点管理(模板制)
-- 11 个模板,创建 = 选模板 + 名称 + 入口机 + 出口(直连/中转)+ (Reality/ShadowTLS 选借站 SNI / 隧道填转发目标);端口(随机)/凭据/密钥/自签证书全自动。
-- **socks/http 可选用户名密码认证**(留空=开放代理,UI 警告;凭据可回显编辑)。
-- 列表:协议徽标、入口机、端口、出口、在线(派生)、启停、分享链接复制、删除。
-- **编辑**:名称/备注/启停/出口/SNI/端口/协议(socks/http 认证可改)。
-- 启停/编辑/删除触发配置下发(入口机 + 引用落地机一并下发),失败自动回滚。
-- **隧道节点不参与订阅**。
+### 9.2 节点管理(SingBox)
+- 11 个协议模板,创建 = 选模板 + 名称 + 入口机(socks/http 可选认证);
+- 列表:协议徽标、入口机、端口、在线(派生)、启停、分享链接复制、删除;
+- 编辑:名称/备注/启停/端口/协议(socks/http 认证可改);
+- 启停/编辑/删除触发配置下发,失败自动回滚;
+- 隧道节点不参与订阅。
 
-### 9.3 Reality 域名库
+### 9.3 节点管理(Xray)
+- 6 个协议模板:VLESS+Reality/VMess+WS+TLS/Trojan+TLS/SS-AEAD/SOCKS/HTTP;
+- VLESS+Reality 支持 `flow: xtls-rprx-vision`;
+- 仅直连(中转由端口转发功能实现,见 9.5)。
+
+### 9.4 端口转发中转【新增】
+- 新建:选入口机 → 选落地机 → 选落地机上的目标节点 → 自动分配入口机端口;
+- 自动 SSH 到入口机写入 iptables DNAT 规则;
+- 反向操作删除规则;
+- 列表展示所有转发规则。
+- 规则示例: `iptables -t nat -A PREROUTING -p tcp --dport 31001 -j DNAT --to-destination 落地IP:31001`
+
+### 9.5 一键部署全部配置【新增】
+- 服务器页顶部「部署全部」按钮;
+- 遍历所有服务器,逐台生成并原子下发配置;
+- 返回每台机器的下发结果(成功/失败/错误详情)。
+
+### 9.6 节点连通性测试【新增】
+- 节点页每行末尾「测速」按钮;
+- TCP 协议: `nc -zv` 端口可达性;
+- TLS 协议: `openssl s_client` TLS 握手检测;
+- 显示延迟 ms 或 ❌不可达。
+
+### 9.7 Reality 域名库
 - 内置大厂域名 + 用户增删改;新建 VLESS+Reality 节点时下拉选择。
 
-### 9.4 订阅
-- 单条链接 `/sub/<slug>`;UA 自动判定 base64 / sing-box JSON,支持 `?format=` 强制。
-- 内容 = 所有启用节点(对外地址 client_host);按协议输出分享链接(vless/vmess/trojan/ss/hysteria2/tuic),SOCKS/HTTP/ShadowTLS/Naive 仅进 sing-box JSON。
+### 9.8 订阅
+- SingBox: `/sub/<slug>` → base64 分享链接 / sing-box JSON(UA 自动判定);
+- Xray: `/sub/xray/<slug>` → base64 分享链接;
+- 内容 = 所有启用节点(对外地址 client_host)。
 
-### 9.5 鉴权
-- 单管理员,启动时初始化(env 或首启);密码 bcrypt;JWT;除 `/sub/<slug>` 与 `/api/health` 外全部需登录。
-- **在线修改管理员用户名/密码**(需验证旧密码)。
-
-### 9.6 不做(明确排除)
-- 多用户 / 计费 / 流量统计 / 到期;系统资源监控;多级串联;客户端侧模板定制;节点自动测速。
+### 9.9 鉴权
+- 单管理员,启动时初始化(env 或首启);密码 bcrypt;JWT;
+- 在线修改管理员用户名/密码(需验证旧密码)。
 
 ## 10. 测试策略
 
