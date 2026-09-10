@@ -84,9 +84,10 @@ function load(db, id) {
 export function makeXrayNodesRouter({ db, crypto, appSecret, ssh, config }) {
   const router = express.Router();
 
-  const SELECT_JOIN = `SELECT n.*, s.name AS server_name
+  const SELECT_JOIN = `SELECT n.*, s.name AS server_name, g.name AS landing_name
     FROM xray_nodes n
-    JOIN servers s ON s.id = n.server_id`;
+    JOIN servers s ON s.id = n.server_id
+    LEFT JOIN servers g ON g.id = n.landing_server_id`;
   const listQuery = `${SELECT_JOIN} ORDER BY n.id`;
 
   router.get('/', (req, res) => {
