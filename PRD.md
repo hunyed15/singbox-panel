@@ -112,15 +112,28 @@ Siray-Panel 是一个**个人自用的 sing-box/Xray-core 双核心节点管理�
 客户端 ──VLESS+Reality──▶ 落地机(xray/sing-box) ──▶ 互联网
 ```
 
-### 7.2 中转节点(端口转发)
+### 7.2 中转节点(端口转发 - iptables DNAT)
 
 ```
 客户端 ──VLESS+Reality──▶ 入口机(iptables DNAT) ────▶ 落地机(xray/sing-box) ──▶ 互联网
                             ↑ port 31001 → 落地IP:31001
 ```
 
-入口机通过 iptables 规则将端口流量透明转发到落地机,客户端感知不到中转存在。
-转发不加密(中转机和落地机之间可能是内网或同一机房;如需加密请在落地机上用协议 TLS)。
+**技术选型确认**:采用 **iptables DNAT** 作为中转方案,原因:
+
+| 维度 | iptables DNAT | gost/socat/haproxy |
+|------|---------------|-------------------|
+| 延迟 | **趋零**(内核态,不进出用户态) | +0.1~0.5ms(用户态拷贝) |
+| 吞吐 | **线速**(网卡极限) | 受限于单进程 CPU |
+| 依赖 | **零依赖**(每台 Linux 内置) | 需安装额外二进制 |
+| 透明性 | 完全透明,客户端无感知 | 部分工具会修改 TCP 选项 |
+
+**持久化方案**:
+```bash
+# 面板在创建规则后自动执行
+iptables-save > /etc/iptables/rules.v4
+# 或安装 iptables-persistent 开机自动恢复
+```
 
 ### 7.2 关键不变式
 
