@@ -48,6 +48,7 @@ function nodeItem(row, serverName) {
     flow: row.flow || undefined,
     outbound_type: row.outbound_type,
     landing_server_id: row.landing_server_id ?? undefined,
+    landing_name: row.landing_name || undefined,
     tunnel_address: row.tunnel_address || undefined,
     tunnel_port: row.tunnel_port ?? undefined,
     share_link: null,
