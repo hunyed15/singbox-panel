@@ -121,8 +121,10 @@ export async function deployXrayServer(db, ssh, crypto, config, serverId) {
   const hasXrayNodes = db
     .prepare('SELECT COUNT(*) c FROM xray_nodes WHERE server_id = ? AND enabled = 1')
     .get(serverId).c;
-  if (hasXrayNodes === 0) {
-    // 无启用 xray 节点则跳过下发
+  const isLandingRef = db
+    .prepare("SELECT COUNT(*) c FROM xray_nodes WHERE landing_server_id = ? AND enabled = 1 AND outbound_type = 'relay'")
+    .get(serverId).c;
+  if (hasXrayNodes === 0 && isLandingRef === 0) {
     return { ok: true, steps: ['skip'] };
   }
 
