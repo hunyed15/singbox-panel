@@ -247,5 +247,12 @@ export function makeXrayNodesRouter({ db, crypto, appSecret, ssh, config }) {
     res.json({ ok: true, deploy });
   });
 
+  /** 清空所有 xray 节点(不触发部署) */
+  router.post('/purge', (req, res) => {
+    const keepId = req.body?.keepId || 0;
+    const count = db.prepare('DELETE FROM xray_nodes WHERE id != ?').run(keepId).changes;
+    res.json({ ok: true, deleted: count });
+  });
+
   return router;
 }
