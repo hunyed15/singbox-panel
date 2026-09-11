@@ -3,6 +3,7 @@ import type {
   AccountPatch,
   ApiModule,
   ControlResult,
+  DeployAllResult,
   DeployResult,
   InstallScriptResult,
   LoginResult,
@@ -11,6 +12,9 @@ import type {
   NodePatch,
   NodeProtocol,
   NodeTemplate,
+  NodeTestResult,
+  PortForwardCreateInput,
+  PortForwardItem,
   Server,
   ServerInput,
   Settings,
@@ -906,6 +910,59 @@ export const uninstallXrayServer = async (_id: number): Promise<ControlResult> =
   return { ok: true, steps: ['停止 xray 服务', '删除 xray 二进制与配置'] };
 };
 
+// ---- 端口转发 (Mock) ----
+let portForwards: PortForwardItem[] = [];
+let nextPfId = 300;
+
+export const getPortForwards = async (): Promise<PortForwardItem[]> => {
+  await delay();
+  return portForwards;
+};
+
+export const createPortForward = async (payload: PortForwardCreateInput): Promise<{ port_forward: PortForwardItem }> => {
+  await delay();
+  const entry = servers.find((s) => s.id === payload.entryServerId)!;
+  const landing = servers.find((s) => s.id === payload.landingServerId)!;
+  const id = nextPfId++;
+  const pf: PortForwardItem = {
+    id, name: payload.name,
+    entry_server_id: payload.entryServerId, entry_server_name: entry?.name || '',
+    landing_server_id: payload.landingServerId, landing_server_name: landing?.name || '',
+    target_node_type: payload.targetNodeType, target_node_id: payload.targetNodeId,
+    target_node_name: 'mock-node', entry_port: payload.entryPort || 31001,
+    target_port: payload.targetPort, enabled: 1, note: payload.note || '', created_at: iso(0),
+  };
+  portForwards = [...portForwards, pf];
+  return { port_forward: pf };
+};
+
+export const deletePortForward = async (id: number): Promise<{ ok: true }> => {
+  await delay();
+  portForwards = portForwards.filter((p) => p.id !== id);
+  return { ok: true };
+};
+
+// ---- 一键部署 ----
+export const deployAll = async (): Promise<{ results: DeployAllResult[] }> => {
+  await delay(2000);
+  return { results: servers.filter(s => s.control === 'ssh').map(s => ({
+    serverId: s.id, serverName: s.name,
+    singbox: { ok: true, steps: ['skip'] },
+    xray: { ok: true, steps: ['skip'] },
+  }))};
+};
+
+// ---- 节点测速 ----
+export const testXrayNode = async (_id: number): Promise<NodeTestResult> => {
+  await delay(800);
+  return { ok: true, latency_ms: 45, detail: 'TCP connected' };
+};
+
+export const testSingboxNode = async (_id: number): Promise<NodeTestResult> => {
+  await delay(800);
+  return { ok: true, latency_ms: 52, detail: 'TCP connected' };
+};
+
 export const api: ApiModule = {
   login,
   getMe,
@@ -937,4 +994,10 @@ export const api: ApiModule = {
   installXrayServer,
   restartXrayServer,
   uninstallXrayServer,
+  getPortForwards,
+  createPortForward,
+  deletePortForward,
+  deployAll,
+  testXrayNode,
+  testSingboxNode,
 };

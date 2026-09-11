@@ -4,6 +4,7 @@ import { RequireAuth } from '../router/RequireAuth';
 import { LoginPage } from '../pages/LoginPage';
 import { NodesPage } from '../pages/NodesPage';
 import { XrayNodesPage } from '../pages/XrayNodesPage';
+import { PortForwardsPage } from '../pages/PortForwardsPage';
 import { ServersPage } from '../pages/ServersPage';
 import { SubscribePage } from '../pages/SubscribePage';
 
@@ -17,6 +18,7 @@ export default function App() {
           <Route path="servers" element={<ServersPage />} />
           <Route path="nodes" element={<NodesPage />} />
           <Route path="xray-nodes" element={<XrayNodesPage />} />
+          <Route path="port-forwards" element={<PortForwardsPage />} />
           <Route path="subscribe" element={<SubscribePage />} />
         </Route>
       </Route>

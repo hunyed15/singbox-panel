@@ -11,6 +11,7 @@ const NAV_ITEMS = [
   { key: '/servers', icon: <ApiOutlined />, label: '服务器' },
   { key: '/nodes', icon: <LinkOutlined />, label: 'SingBox 节点' },
   { key: '/xray-nodes', icon: <ApiOutlined />, label: 'Xray 节点' },
+  { key: '/port-forwards', icon: <LinkOutlined />, label: '中转规则' },
   { key: '/subscribe', icon: <SyncOutlined />, label: '订阅' },
 ];
 const NAV_KEYS = NAV_ITEMS.map((item) => item.key);

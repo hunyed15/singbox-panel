@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { Alert, App, Badge, Button, Flex, Popconfirm, Switch, Table, Tag, Typography } from 'antd';
-import { CopyOutlined, DeleteOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons';
+import { CopyOutlined, DeleteOutlined, EditOutlined, PlusOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { api } from '../services';
-import type { DeployResult, Server, SniItem, XrayNodeItem } from '../services/types';
+import type { DeployResult, NodeTestResult, Server, SniItem, XrayNodeItem } from '../services/types';
 import { useAsyncData } from '../hooks/useAsyncData';
 import { XrayNodeCreateModal } from '../components/XrayNodeCreateModal';
 import { XrayNodeEditModal } from '../components/XrayNodeEditModal';
@@ -15,6 +15,8 @@ export function XrayNodesPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<XrayNodeItem | null>(null);
   const [deployError, setDeployError] = useState<string | null>(null);
+  const [testingId, setTestingId] = useState<number | null>(null);
+  const [testResults, setTestResults] = useState<Record<number, NodeTestResult>>({});
 
   const { data, loading, error, reload } = useAsyncData(async () => {
     const [nodes, servers, snis] = await Promise.all([
@@ -72,6 +74,18 @@ export function XrayNodesPage() {
       message.success(`已复制 ${node.name} 的分享链接`);
     } catch {
       message.error('复制失败,请手动选择复制');
+    }
+  };
+
+  const handleTest = async (node: XrayNodeItem) => {
+    setTestingId(node.id);
+    try {
+      const res = await api.testXrayNode(node.id);
+      setTestResults((prev) => ({ ...prev, [node.id]: res }));
+    } catch (err) {
+      setTestResults((prev) => ({ ...prev, [node.id]: { ok: false, detail: '测试失败' } }));
+    } finally {
+      setTestingId(null);
     }
   };
 
@@ -152,6 +166,22 @@ export function XrayNodesPage() {
         ) : (
           <Typography.Text type="secondary">走订阅</Typography.Text>
         ),
+    },
+    {
+      title: '测速',
+      key: 'test',
+      width: 110,
+      render: (_, record) => {
+        const tr = testResults[record.id];
+        return (
+          <Button type="link" size="small" icon={<ThunderboltOutlined />}
+            loading={testingId === record.id}
+            onClick={() => handleTest(record)}
+          >
+            {tr ? (tr.ok ? `${tr.latency_ms || ''}ms` : '❌') : '测速'}
+          </Button>
+        );
+      },
     },
     {
       title: '操作',

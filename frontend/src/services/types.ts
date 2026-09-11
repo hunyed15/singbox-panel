@@ -286,4 +286,57 @@ export interface ApiModule {
   installXrayServer(id: number): Promise<ControlResult>;
   restartXrayServer(id: number): Promise<ControlResult>;
   uninstallXrayServer(id: number): Promise<ControlResult>;
+
+  // ---- 端口转发 ----
+  getPortForwards(): Promise<PortForwardItem[]>;
+  createPortForward(payload: PortForwardCreateInput): Promise<{ port_forward: PortForwardItem }>;
+  deletePortForward(id: number): Promise<{ ok: true }>;
+
+  // ---- 一键部署 ----
+  deployAll(): Promise<{ results: DeployAllResult[] }>;
+
+  // ---- 节点测速 ----
+  testXrayNode(id: number): Promise<NodeTestResult>;
+  testSingboxNode(id: number): Promise<NodeTestResult>;
+}
+
+export interface PortForwardItem {
+  id: number;
+  name: string;
+  entry_server_id: number;
+  entry_server_name: string;
+  landing_server_id: number;
+  landing_server_name: string;
+  target_node_type: 'singbox' | 'xray';
+  target_node_id: number;
+  target_node_name: string;
+  entry_port: number;
+  target_port: number;
+  enabled: number;
+  note: string;
+  created_at: string;
+}
+
+export interface PortForwardCreateInput {
+  name: string;
+  entryServerId: number;
+  landingServerId: number;
+  targetNodeType: 'singbox' | 'xray';
+  targetNodeId: number;
+  entryPort?: number;
+  targetPort: number;
+  note?: string;
+}
+
+export interface DeployAllResult {
+  serverId: number;
+  serverName: string;
+  singbox: DeployResult;
+  xray: DeployResult;
+}
+
+export interface NodeTestResult {
+  ok: boolean;
+  latency_ms?: number;
+  detail: string;
 }

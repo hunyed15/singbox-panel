@@ -4,12 +4,16 @@ import type {
   AccountPatch,
   ApiModule,
   ControlResult,
+  DeployAllResult,
   DeployResult,
   InstallScriptResult,
   LoginResult,
   NodeCreateInput,
   NodeItem,
   NodePatch,
+  NodeTestResult,
+  PortForwardCreateInput,
+  PortForwardItem,
   Server,
   ServerInput,
   Settings,
@@ -184,6 +188,27 @@ export const restartXrayServer = (id: number): Promise<ControlResult> =>
 export const uninstallXrayServer = (id: number): Promise<ControlResult> =>
   request<ControlResult>(`/api/servers/${id}/xray-uninstall`, { method: 'POST' });
 
+// ---- 端口转发 ----
+export const getPortForwards = (): Promise<PortForwardItem[]> =>
+  request<PortForwardItem[]>('/api/port-forwards');
+
+export const createPortForward = (payload: PortForwardCreateInput): Promise<{ port_forward: PortForwardItem }> =>
+  request<{ port_forward: PortForwardItem }>('/api/port-forwards', { method: 'POST', body: payload });
+
+export const deletePortForward = (id: number): Promise<{ ok: true }> =>
+  request<{ ok: true }>(`/api/port-forwards/${id}`, { method: 'DELETE' });
+
+// ---- 一键部署 ----
+export const deployAll = (): Promise<{ results: DeployAllResult[] }> =>
+  request<{ results: DeployAllResult[] }>('/api/deploy/all', { method: 'POST' });
+
+// ---- 节点测速 ----
+export const testXrayNode = (id: number): Promise<NodeTestResult> =>
+  request<NodeTestResult>(`/api/test/xray-nodes/${id}`, { method: 'POST' });
+
+export const testSingboxNode = (id: number): Promise<NodeTestResult> =>
+  request<NodeTestResult>(`/api/test/nodes/${id}`, { method: 'POST' });
+
 export const api: ApiModule = {
   login,
   getMe,
@@ -215,4 +240,10 @@ export const api: ApiModule = {
   installXrayServer,
   restartXrayServer,
   uninstallXrayServer,
+  getPortForwards,
+  createPortForward,
+  deletePortForward,
+  deployAll,
+  testXrayNode,
+  testSingboxNode,
 };

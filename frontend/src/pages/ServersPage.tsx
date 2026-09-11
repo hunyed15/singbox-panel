@@ -12,7 +12,7 @@ import {
   Tooltip,
   Typography,
 } from 'antd';
-import { ApiOutlined, CopyOutlined, DeleteOutlined, EditOutlined, PlusOutlined, ReloadOutlined } from '@ant-design/icons';
+import { ApiOutlined, CopyOutlined, DeleteOutlined, EditOutlined, PlusOutlined, ReloadOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { api } from '../services';
 import type { Server } from '../services/types';
@@ -46,6 +46,8 @@ export function ServersPage() {
   const [editing, setEditing] = useState<Server | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
+  const [deploying, setDeploying] = useState(false);
+  const [deployResult, setDeployResult] = useState<string | null>(null);
   const [scriptModal, setScriptModal] = useState<{ server: Server; script: string } | null>(null);
   const checkedOnce = useRef(false);
 
@@ -75,6 +77,26 @@ export function ServersPage() {
       message.error(err instanceof Error ? err.message : '检查失败');
     } finally {
       setChecking(false);
+    }
+  };
+
+  const handleDeployAll = async () => {
+    setDeploying(true);
+    setDeployResult(null);
+    try {
+      const res = await api.deployAll();
+      const lines = res.results.map((r) => {
+        const sb = r.singbox?.ok ? 'SB=OK' : `SB=FAIL`;
+        const xr = r.xray?.ok ? 'XR=OK' : `XR=FAIL`;
+        return `${r.serverName}: ${sb} ${xr}`;
+      });
+      setDeployResult(lines.join(' | '));
+      message.success('部署完成');
+      reload();
+    } catch (err) {
+      message.error(err instanceof Error ? err.message : '部署失败');
+    } finally {
+      setDeploying(false);
     }
   };
 
@@ -358,6 +380,13 @@ export function ServersPage() {
         </Typography.Title>
         <Flex gap={8}>
           <Button
+            icon={<ThunderboltOutlined />}
+            loading={deploying}
+            onClick={handleDeployAll}
+          >
+            部署全部
+          </Button>
+          <Button
             icon={<ReloadOutlined />}
             loading={checking}
             onClick={handleCheck}
@@ -369,6 +398,17 @@ export function ServersPage() {
           </Button>
         </Flex>
       </Flex>
+
+      {deployResult && (
+        <Alert
+          type="info"
+          showIcon
+          message="部署结果"
+          description={deployResult}
+          closable
+          onClose={() => setDeployResult(null)}
+        />
+      )}
 
       {error && (
         <Alert
