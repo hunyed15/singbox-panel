@@ -53,9 +53,10 @@ export function buildShareLink(view) {
   const c = view.creds;
   switch (view.protocol) {
     case 'vless':
+      const flowParam = c.flow ? `&flow=${c.flow}` : '';
       return (
         `vless://${c.uuid}@${host}:${port}?encryption=none&security=reality&sni=${sni}` +
-        `&fp=chrome&pbk=${view.realityPublicKey}&sid=${view.shortId}&type=tcp#${enc}`
+        `&fp=chrome&pbk=${view.realityPublicKey}&sid=${view.shortId}&type=tcp${flowParam}#${enc}`
       );
     case 'vmess': {
       const vmess = {
