@@ -30,7 +30,7 @@ export function buildXrayInbound({ node, machine }) {
         ...base,
         protocol: 'vless',
         settings: {
-          clients: [{ id: node.creds.uuid, flow: node.flow || 'xtls-rprx-vision', encryption: 'none' }],
+          clients: [{ id: node.creds.uuid, flow: node.flow || 'xtls-rprx-vision' }],
           decryption: 'none',
         },
         streamSettings: {
