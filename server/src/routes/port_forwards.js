@@ -100,7 +100,7 @@ export function makePortForwardsRouter({ db, ssh, crypto, appSecret }) {
     try {
       await applyPortForward(ssh, conn, port, landingHost, targetPort, false);
     } catch (err) {
-      throw new ApiError(500, `iptables 规则写入失败: ${err.message}`);
+      throw new ApiError(500, `转发规则写入失败: ${err.message}`);
     }
 
     const info = db.prepare(
