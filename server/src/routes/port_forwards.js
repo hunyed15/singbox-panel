@@ -7,8 +7,8 @@ async function applyPortForward(ssh, conn, entryPort, landingHost, targetPort, r
   // 先检查 iptables 是否可用
   let useIptables = false;
   try {
-    await ssh.exec(conn, `command -v iptables >/dev/null 2>&1 && echo OK || echo NO`);
-    useIptables = true;
+    const chk = await ssh.exec(conn, `command -v iptables >/dev/null 2>&1 && echo YES || echo NO`);
+    useIptables = chk.stdout.trim() === 'YES';
   } catch { useIptables = false; }
 
   if (useIptables) {
