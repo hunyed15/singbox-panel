@@ -33,12 +33,12 @@ export async function deployXrayMachine(ssh, conn, config, { xrayBin, xrayConfig
   try {
     await ssh.exec(conn, `systemctl restart ${xrayUnit}`);
     steps.push('restart');
-    // 等待 xray 启动(最多重试 5 次)
+    // 等待 xray 启动(最多重试 10 次,每次 1s)
     let active = false;
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 10; i++) {
+      await new Promise((r) => setTimeout(r, 1000));
       const status = await ssh.exec(conn, `systemctl is-active ${xrayUnit} || echo inactive`);
       if (status.stdout.trim() === 'active') { active = true; break; }
-      await new Promise((r) => setTimeout(r, 1000));
     }
     if (!active) {
       await ssh.exec(conn, `cp -f ${xrayConfig}.bak ${xrayConfig} 2>/dev/null || true`);
