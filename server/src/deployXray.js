@@ -42,6 +42,11 @@ export async function deployXrayMachine(ssh, conn, config, { xrayBin, xrayConfig
         if (status.stdout.trim() === 'active') { active = true; break; }
       } catch {}
     }
+    if (!active) {
+      // 收集 xray 日志辅助排查
+      const logs = await ssh.exec(conn, `journalctl -u ${xrayUnit} -n 20 --no-pager 2>/dev/null || echo no journalctl`).catch(() => ({ stdout: 'n/a' }));
+      steps.push(`journal: ${logs.stdout.slice(0, 500)}`);
+    }
     steps.push(active ? 'verify' : 'verify-timeout');
   } catch (err) {
     // restart 本身失败 → 回滚
