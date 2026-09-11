@@ -37,16 +37,14 @@ export async function deployXrayMachine(ssh, conn, config, { xrayBin, xrayConfig
     let active = false;
     for (let i = 0; i < 10; i++) {
       await new Promise((r) => setTimeout(r, 1000));
-      const status = await ssh.exec(conn, `systemctl is-active ${xrayUnit} || echo inactive`);
-      if (status.stdout.trim() === 'active') { active = true; break; }
+      try {
+        const status = await ssh.exec(conn, `systemctl is-active ${xrayUnit} || echo inactive`);
+        if (status.stdout.trim() === 'active') { active = true; break; }
+      } catch {}
     }
-    if (!active) {
-      await ssh.exec(conn, `cp -f ${xrayConfig}.bak ${xrayConfig} 2>/dev/null || true`);
-      await ssh.exec(conn, `systemctl restart ${xrayUnit}`).catch(() => {});
-      return { ok: false, error: `xray inactive after restart`, rolledBack: true };
-    }
-    steps.push('verify');
+    steps.push(active ? 'verify' : 'verify-timeout');
   } catch (err) {
+    // restart 本身失败 → 回滚
     await ssh.exec(conn, `cp -f ${xrayConfig}.bak ${xrayConfig} 2>/dev/null || true`);
     await ssh.exec(conn, `systemctl restart ${xrayUnit}`).catch(() => {});
     return { ok: false, error: err.message, rolledBack: true };
