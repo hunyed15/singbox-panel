@@ -2,18 +2,34 @@ import express from 'express';
 import { ApiError } from '../errors.js';
 import { buildConn } from '../ssh.js';
 
-/** 在入口机写入 iptables DNAT 规则 */
-async function applyIptables(ssh, conn, entryPort, landingHost, targetPort, remove) {
-  const action = remove ? '-D' : '-A';
-  const cmds = [
-    `iptables -t nat ${action} PREROUTING -p tcp --dport ${entryPort} -j DNAT --to-destination ${landingHost}:${targetPort}`,
-    `iptables ${action} FORWARD -p tcp -d ${landingHost} --dport ${targetPort} -j ACCEPT`,
-  ];
-  for (const cmd of cmds) {
-    await ssh.exec(conn, cmd);
+/** 在入口机写入转发规则:优先 iptables,降级到 socat */
+async function applyPortForward(ssh, conn, entryPort, landingHost, targetPort, remove) {
+  // 先检查 iptables 是否可用
+  let useIptables = false;
+  try {
+    await ssh.exec(conn, `command -v iptables >/dev/null 2>&1 && echo OK || echo NO`);
+    useIptables = true;
+  } catch { useIptables = false; }
+
+  if (useIptables) {
+    const action = remove ? '-D' : '-A';
+    const cmds = [
+      `iptables -t nat ${action} PREROUTING -p tcp --dport ${entryPort} -j DNAT --to-destination ${landingHost}:${targetPort}`,
+      `iptables ${action} FORWARD -p tcp -d ${landingHost} --dport ${targetPort} -j ACCEPT`,
+    ];
+    for (const cmd of cmds) await ssh.exec(conn, cmd);
+    await ssh.exec(conn, `(command -v iptables-save >/dev/null && iptables-save > /etc/iptables/rules.v4 2>/dev/null) || true`);
+  } else {
+    // 降级到 socat
+    const pidFile = `/tmp/socat-fwd-${entryPort}.pid`;
+    if (remove) {
+      await ssh.exec(conn, `kill $(cat ${pidFile} 2>/dev/null) 2>/dev/null; rm -f ${pidFile}; true`);
+    } else {
+      // 装 socat
+      await ssh.exec(conn, `(command -v socat >/dev/null || (apt-get update -qq && apt-get install -y -qq socat) || (yum install -y -q socat) || true)`);
+      await ssh.exec(conn, `nohup socat TCP-LISTEN:${entryPort},fork,reuseaddr TCP:${landingHost}:${targetPort} &>/dev/null & echo \\$! > ${pidFile}`);
+    }
   }
-  // 持久化
-  await ssh.exec(conn, `(command -v iptables-save >/dev/null && iptables-save > /etc/iptables/rules.v4 2>/dev/null) || true`);
 }
 
 export function makePortForwardsRouter({ db, ssh, crypto, appSecret }) {
@@ -82,7 +98,7 @@ export function makePortForwardsRouter({ db, ssh, crypto, appSecret }) {
     const conn = buildConn(entry, crypto.decrypt, appSecret);
     const landingHost = landing.client_host || landing.host;
     try {
-      await applyIptables(ssh, conn, port, landingHost, targetPort, false);
+      await applyPortForward(ssh, conn, port, landingHost, targetPort, false);
     } catch (err) {
       throw new ApiError(500, `iptables 规则写入失败: ${err.message}`);
     }
@@ -107,7 +123,7 @@ export function makePortForwardsRouter({ db, ssh, crypto, appSecret }) {
         const conn = buildConn(entry, crypto.decrypt, appSecret);
         const landingHost = landing.client_host || landing.host;
         try {
-          await applyIptables(ssh, conn, row.entry_port, landingHost, row.target_port, true);
+          await applyPortForward(ssh, conn, row.entry_port, landingHost, row.target_port, true);
         } catch (err) {
           // 删除规则失败不阻断,记录即可
           console.error(`[port-forward] delete iptables rule #${id} failed:`, err.message);
