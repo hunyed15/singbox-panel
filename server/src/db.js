@@ -90,6 +90,20 @@ CREATE TABLE IF NOT EXISTS xray_server_settings (
   short_id TEXT NOT NULL,
   port_base INTEGER NOT NULL DEFAULT 41000
 );
+CREATE TABLE IF NOT EXISTS port_forwards (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  entry_server_id INTEGER NOT NULL REFERENCES servers(id) ON DELETE CASCADE,
+  landing_server_id INTEGER NOT NULL REFERENCES servers(id) ON DELETE CASCADE,
+  target_node_type TEXT NOT NULL CHECK(target_node_type IN ('singbox','xray')),
+  target_node_id INTEGER NOT NULL,
+  entry_port INTEGER NOT NULL,
+  target_port INTEGER NOT NULL,
+  enabled INTEGER NOT NULL DEFAULT 1,
+  note TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  UNIQUE(entry_server_id, entry_port)
+);
 CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS users (
   id INTEGER PRIMARY KEY AUTOINCREMENT,

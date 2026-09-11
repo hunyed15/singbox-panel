@@ -5,6 +5,7 @@ import { initDb, getSetting, setSetting, ensureAdmin } from '../src/db.js';
 const TABLES = [
   'landing_settings',
   'nodes',
+  'port_forwards',
   'relay_settings',
   'servers',
   'settings',
